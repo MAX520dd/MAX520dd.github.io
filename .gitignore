@@ -1,0 +1,44 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 密钥与本地环境（勿提交）
+backend/.env
+.env
+.env.local
+*.pem
+*.key
+
+# 前端本地配置（复制 *.example 后修改）
+uniapp/config/server.local.js
+uniapp/dcloud-android.local.properties
+
+# UniApp / HBuilder 构建产物
+uniapp/unpackage/
+uniapp/node_modules/
+node_modules/
+
+# 后端运行时
+backend/static/audio/*.mp3
+!backend/static/audio/.gitkeep
+
+# macOS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# 日志与临时文件
+*.log
+.cache/
+dist/
+build/
+
+# 可选：不上传 Cursor 会话缓存（技能文档保留在仓库内）
+.cursor/projects/
+.cursor/agent-transcripts/

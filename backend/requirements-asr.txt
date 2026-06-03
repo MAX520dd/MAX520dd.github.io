@@ -1,0 +1,7 @@
+# 语音识别 SenseVoice（可选，体积大）
+funasr>=1.1.0
+modelscope>=1.20.0
+torch>=2.0.0
+torchaudio>=2.0.0
+soundfile>=0.12.1
+numpy>=1.26.0

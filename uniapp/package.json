@@ -1,0 +1,15 @@
+{
+  "name": "ai-voice-chat-uniapp",
+  "version": "1.0.0",
+  "description": "AI 语音对话 UniApp 客户端",
+  "scripts": {
+    "dev:h5": "uni -p h5",
+    "build:h5": "uni build -p h5"
+  },
+  "dependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.0"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "claim_reward_orundum": 600,
+  "red_packet_cooldown_sec": 1800,
+  "red_packets": {
+    "skadi": {
+      "item_id": "skadi_favorite_record",
+      "title": "她常听的歌曲唱片",
+      "desc": "斯卡蒂悄悄塞给你一张旧唱片，封面磨损却保存完好。",
+      "icon": "💿"
+    },
+    "skadi_corrupting": {
+      "item_id": "seaborn_reaper",
+      "title": "覆海收割者",
+      "desc": "浊心斯卡蒂用潮声凝成的小型造物，像蜷缩的海嗣幼体。",
+      "icon": "🌊"
+    }
+  },
+  "shop_items": [
+    {
+      "id": "gift_saltwind_memory",
+      "name": "盐风城回忆",
+      "desc": "送给斯卡蒂，她会向博士讲述盐风城的往事，并附上一张照片。",
+      "icon": "🏛️",
+      "price": 480,
+      "currency": "orundum",
+      "target_persona_id": "skadi",
+      "event_type": "story_photo",
+      "user_trigger": "博士把一份「盐风城回忆」递到斯卡蒂面前。",
+      "event_prompt": "你是主线斯卡蒂。博士送来了与盐风城相关的礼物，触发你尘封的回忆。用第一人称对博士讲述一段盐风城的往事（哼歌、海风、孤独），1~3句口语，≤120字，外冷内温。禁止列表、网络梗、浊心口吻。输出格式仍用<cot>与[emotion:]；可加[image:yes]表示愿意分享照片。",
+      "placeholder_image": "/static/events/saltwind_placeholder.png"
+    },
+    {
+      "id": "gift_azure_tide",
+      "name": "幽蓝潮声",
+      "desc": "送给浊心斯卡蒂，她会为博士哼唱一段歌谣。",
+      "icon": "🎵",
+      "price": 520,
+      "currency": "orundum",
+      "target_persona_id": "skadi_corrupting",
+      "event_type": "sing",
+      "user_trigger": "博士将「幽蓝潮声」放在浊心斯卡蒂膝边，请她唱给博士听。",
+      "event_prompt": "你是浊心斯卡蒂。博士请求你哼唱。只输出2~3句短歌词（整段≤50字，可用呢、吧），像潮声里的歌谣，不要解释。可朗读歌词全部写在<cot text=\"轻柔缓慢地哼唱歌谣，带旋律感\">…</cot>内，勿用括号包住歌词；动作描写用全角括号附在 cot 外如（指尖抚过唱片），括号内容不念出、仅展示。禁止「」与半角()。一组 cot；末行[emotion:gentle]。"
+    },
+    {
+      "id": "gift_greatsea_slumber",
+      "name": "大海之眠",
+      "desc": "送给浊心斯卡蒂，她会困倦地回应，并发出轻轻的呼噜声。",
+      "icon": "💤",
+      "price": 450,
+      "currency": "orundum",
+      "target_persona_id": "skadi_corrupting",
+      "event_type": "drowsy_snore",
+      "user_trigger": "博士为浊心斯卡蒂点上「大海之眠」，想让她安心睡一会儿。",
+      "event_prompt": "你是浊心斯卡蒂。博士让你休息。先输出1句极短困倦对白（≤30字），然后单独一行写[SNORE]表示即将发出睡梦中的气声。格式：<cot text=\"困倦呢喃\">对白</cot> [emotion:calm] 换行 [SNORE]"
+    }
+  ],
+  "special_item_meta": {
+    "skadi_favorite_record": {
+      "name": "她常听的歌曲唱片",
+      "desc": "斯卡蒂的私藏唱片，标签已磨白。",
+      "icon": "💿",
+      "source": "red_packet"
+    },
+    "seaborn_reaper": {
+      "name": "覆海收割者",
+      "desc": "潮声凝成的小型造物，触手般的外壳微微起伏。",
+      "icon": "🌊",
+      "source": "red_packet"
+    },
+    "gift_saltwind_memory": {
+      "name": "盐风城回忆",
+      "desc": "与斯卡蒂共度的回忆片段。",
+      "icon": "🏛️",
+      "source": "gift"
+    },
+    "gift_azure_tide": {
+      "name": "幽蓝潮声",
+      "desc": "红蒂哼唱过的歌谣残响。",
+      "icon": "🎵",
+      "source": "gift"
+    },
+    "gift_greatsea_slumber": {
+      "name": "大海之眠",
+      "desc": "潮声深处的安眠。",
+      "icon": "💤",
+      "source": "gift"
+    }
+  }
+}
