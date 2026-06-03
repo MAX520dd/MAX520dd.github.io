@@ -38,7 +38,7 @@ cp .env.example .env
 | `DOUBAO_API_KEY` | 豆包语音 API Key（`X-Api-Key`，见 [配置说明](doubao-tts-setup.md)） |
 | `DOUBAO_ACCESS_TOKEN` | 与 `DOUBAO_API_KEY` 等价，兼容旧 `.env` |
 | `DOUBAO_VOICE_TYPE` | 默认音色 ID（复刻音色如 `S_SUcfpOs32`） |
-| `PUBLIC_BASE_URL` | 手机可访问的 Mac 地址，如 `http://192.168.1.100:8000` |
+| `PUBLIC_BASE_URL` | 手机可访问的 Mac 地址，如 `http://192.168.1.100:8010` |
 
 ### 创建火山方舟推理接入点（人物性格推荐）
 
@@ -57,24 +57,24 @@ cp .env.example .env
 
 ```bash
 source .venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8010
 ```
 
-浏览器打开 http://127.0.0.1:8000/health 应返回 `status: ok`。
+浏览器打开 http://127.0.0.1:8010/health 应返回 `status: ok`。
 
 ## 4. 内网访问
 
 1. 系统设置 → 网络 → 查看 Mac 的 WiFi IP（如 `192.168.1.100`）
-2. 将 `.env` 中 `PUBLIC_BASE_URL` 改为 `http://192.168.1.100:8000`
-3. 手机连接同一 WiFi，在 App 设置页填写相同地址
-4. 若无法访问，检查 macOS 防火墙是否放行 8000 端口
+2. 将 `.env` 中 `PUBLIC_BASE_URL` 改为 `http://192.168.1.100:8010`
+3. 手机连接同一 WiFi，在 App 设置页填写相同地址（或配置 `uniapp/config/server.local.js`）
+4. 若无法访问，检查 macOS 防火墙是否放行 8010 端口
 
 ## 5. 外出使用（内网穿透）
 
 可选方案：
 
 - **Tailscale**：Mac 与手机加入同一 Tailnet，用 Mac 的 Tailscale IP
-- **frp / ngrok**：将 8000 映射到公网 HTTPS 域名，App 填穿透地址
+- **frp / ngrok**：将 8010 映射到公网 HTTPS 域名，App 填穿透地址
 
 穿透后请将 `PUBLIC_BASE_URL` 改为外网可访问的完整 URL。
 
@@ -82,15 +82,15 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ```bash
 # 健康检查
-curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8010/health
 
 # 文本对话
-curl -X POST http://127.0.0.1:8000/v1/chat \
+curl -X POST http://127.0.0.1:8010/v1/chat \
   -H "Content-Type: application/json" \
-  -d '{"text":"你好","persona_id":"gentle_sister"}'
+  -d '{"text":"你好","persona_id":"skadi"}'
 
 # TTS
-curl -X POST http://127.0.0.1:8000/v1/tts \
+curl -X POST http://127.0.0.1:8010/v1/tts \
   -H "Content-Type: application/json" \
   -d '{"text":"你好，很高兴认识你"}'
 ```
