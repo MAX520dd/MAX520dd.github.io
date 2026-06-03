@@ -453,8 +453,9 @@ ai-voice-chat/
 
 ---
 
-## 声明
+## 声明与许可
 
+- 本项目源码采用 [Apache License 2.0](LICENSE)（与 [MAX520dd/MAX520dd.github.io](https://github.com/MAX520dd/MAX520dd.github.io) 仓库一致）。
 - 仅供学习与交流；请勿将 API Key、复刻音色用于未授权商用。
-- 角色与设定版权归 respective owners。
-- 仓库：[github.com/MAX520dd/MAX520dd.github.io](https://github.com/MAX520dd/MAX520dd.github.io)
+- 《明日方舟》角色、立绘、名称等版权归 **上海鹰角网络科技有限公司** 及其权利人所有；本仓库为同人向二次创作，不主张官方权利。
+- 仓库：https://github.com/MAX520dd/MAX520dd.github.io
