@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     doubao_tts_model: str = "seed-tts-2.0-expressive"
     doubao_cluster: str = "volcano_tts"
     doubao_cluster_icl: str = "volcano_icl"
+    # 官方 SVS/歌手音色 sing（仅 2.0 大模型音色如灿灿，复刻 S_ 无效）
+    doubao_sing_enabled: bool = False
+    doubao_sing_voice: str = "zh_female_cancan_mars_bigtts"
+    doubao_sing_resource_id: str = "seed-tts-2.0"
+    doubao_sing_mode: str = "auto"
+    doubao_sing_bpm: int = 95
+    doubao_sing_emotion_scale: float = 4.0
 
     asr_enabled: bool = True
     asr_model: str = "iic/SenseVoiceSmall"

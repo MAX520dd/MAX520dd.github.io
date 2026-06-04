@@ -5,6 +5,19 @@
       <text class="banner-sub">合成玉 {{ wallet.orundum }} · 购买后从背包赠送干员</text>
     </view>
 
+    <view v-if="loading" class="state-box">
+      <text class="state-text">正在加载商品…</text>
+    </view>
+    <view v-else-if="loadError" class="state-box error">
+      <text class="state-text">{{ loadError }}</text>
+      <button class="retry-btn" size="mini" @click="load">重试</button>
+      <text class="state-hint">请确认已启动后端，并在「我」→ 设置中测试连接</text>
+    </view>
+    <view v-else-if="!goods.length" class="state-box">
+      <text class="state-text">暂无商品</text>
+      <button class="retry-btn" size="mini" @click="load">刷新</button>
+    </view>
+
     <view class="goods-list">
       <view v-for="item in goods" :key="item.id" class="goods-card">
         <view class="goods-icon">{{ item.icon }}</view>
@@ -34,7 +47,8 @@
 </template>
 
 <script>
-import { fetchGameCatalog, fetchPersonas, triggerGift } from '@/api/client.js'
+import { fetchGameCatalog, fetchPersonas, triggerGift, formatNetworkError } from '@/api/client.js'
+import { CATALOG_FALLBACK } from '@/config/catalog-fallback.js'
 import {
   getWallet,
   buyShopItem,
@@ -52,7 +66,10 @@ export default {
       goods: [],
       wallet: getWallet(),
       personas: [],
-      catalog: null
+      catalog: null,
+      loading: false,
+      loadError: '',
+      catalogOffline: false
     }
   },
   onShow() {
@@ -68,14 +85,38 @@ export default {
       return getInventoryCount(itemId)
     },
     async load() {
+      this.loading = true
+      this.loadError = ''
+      this.catalogOffline = false
       try {
         const catalog = await fetchGameCatalog()
+        if (!catalog?.shop_items?.length) {
+          throw new Error('后端返回的商品列表为空')
+        }
         cacheCatalog(catalog)
         this.catalog = catalog
-        this.goods = catalog.shop_items || []
-      } catch {
+        this.goods = catalog.shop_items
+      } catch (e) {
+        const msg = formatNetworkError(e)
         const c = getCachedCatalog()
-        this.goods = c?.shop_items || []
+        if (c?.shop_items?.length) {
+          this.catalog = c
+          this.goods = c.shop_items
+          this.loadError = `已用上次缓存（${msg}）`
+          this.catalogOffline = true
+        } else {
+          this.catalog = { ...CATALOG_FALLBACK }
+          this.goods = CATALOG_FALLBACK.shop_items
+          this.loadError = msg
+          this.catalogOffline = true
+          uni.showToast({
+            title: '商品仅展示，赠送需连后端',
+            icon: 'none',
+            duration: 3000
+          })
+        }
+      } finally {
+        this.loading = false
       }
       try {
         this.personas = await fetchPersonas()
@@ -114,16 +155,23 @@ export default {
             uni.showToast({ title: '背包数量不足', icon: 'none' })
             return
           }
+          if (this.catalogOffline) {
+            uni.showToast({
+              title: '请先连接后端并刷新商城',
+              icon: 'none',
+              duration: 2500
+            })
+            return
+          }
           uni.showLoading({ title: '准备惊喜...' })
           try {
             const ev = await triggerGift(target, item.id)
             if (item.event_type === 'sing' && !ev?.audio_url) {
               uni.showToast({
-                title: '歌谣合成失败，请检查后端 TTS 配置',
+                title: (ev?.tts_error || '歌唱合成失败，请检查后端 TTS').slice(0, 60),
                 icon: 'none',
                 duration: 3500
               })
-              return
             }
             if (!consumeInventoryItem(item.id)) {
               uni.showToast({ title: '背包数量不足', icon: 'none' })
@@ -170,6 +218,33 @@ export default {
   margin-top: 8rpx;
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.75);
+}
+.state-box {
+  margin: 24rpx;
+  padding: 32rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  text-align: center;
+}
+.state-box.error {
+  background: #fff8f0;
+}
+.state-text {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+}
+.state-hint {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+.retry-btn {
+  margin-top: 20rpx;
+  background: #07c160;
+  color: #fff;
 }
 .goods-list {
   padding: 0 24rpx;

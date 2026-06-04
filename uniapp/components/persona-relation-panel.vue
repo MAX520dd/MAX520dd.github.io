@@ -19,7 +19,7 @@
       <text v-if="relation.lastMoodDelta" class="hint">
         上轮氛围 {{ relation.lastMoodDelta > 0 ? '+' : '' }}{{ relation.lastMoodDelta }}
       </text>
-      <text class="sub">开心度 ≥85 且对话氛围良好时，可能收到特殊红包</text>
+      <text class="sub">开心度达标且氛围回暖时，可能收到特殊红包；表情包间隔数分钟，不宜过频</text>
       <button class="btn" size="mini" @click="close">关闭</button>
     </view>
   </view>

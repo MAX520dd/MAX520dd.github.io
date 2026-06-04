@@ -1,6 +1,78 @@
 {
   "claim_reward_orundum": 600,
   "red_packet_cooldown_sec": 1800,
+  "sticker_settings": {
+    "skadi": {
+      "cooldown_sec": 180,
+      "min_joy": 35,
+      "pity_every": 5,
+      "base_probability": 0.14
+    },
+    "skadi_corrupting": {
+      "cooldown_sec": 150,
+      "min_joy": 30,
+      "pity_every": 4,
+      "base_probability": 0.18
+    }
+  },
+  "sticker_image_folders": {
+    "skadi": "skd",
+    "skadi_corrupting": "zhuoxinskd"
+  },
+  "sticker_packs": {
+    "skadi": {
+      "cold": [
+        { "id": "skadi_glare", "emoji": "😑", "caption": "……别看了" },
+        { "id": "skadi_sword", "emoji": "🗡️", "caption": "有事说" }
+      ],
+      "calm": [
+        { "id": "skadi_wave", "emoji": "🌊", "caption": "海风" },
+        { "id": "skadi_moon", "emoji": "🌙", "caption": "夜里" }
+      ],
+      "sad": [
+        { "id": "skadi_rain", "emoji": "🌧️", "caption": "……" },
+        { "id": "skadi_sigh", "emoji": "😔", "caption": "算了" }
+      ],
+      "melancholy": [
+        { "id": "skadi_far", "emoji": "🌫️", "caption": "很远" },
+        { "id": "skadi_quiet", "emoji": "🤫", "caption": "别问" }
+      ],
+      "gentle": [
+        { "id": "skadi_ok", "emoji": "🫧", "caption": "嗯" },
+        { "id": "skadi_stay", "emoji": "⚓", "caption": "在" }
+      ],
+      "happy": [
+        { "id": "skadi_rare_smile", "emoji": "🙂", "caption": "……还行" }
+      ]
+    },
+    "skadi_corrupting": {
+      "gentle": [
+        { "id": "cor_tide", "image": "64ebcdaeb9ed3a017891d21b4dc5c509.jpg", "caption": "潮声" },
+        { "id": "cor_heart", "image": "69fdc17c2614c30bd7ede98b9e614d1a.jpg", "caption": "博士" },
+        { "id": "cor_hum", "image": "4d6c6e912032746af1e3e3ea01f9061f.jpg", "caption": "哼给你" }
+      ],
+      "possessive": [
+        { "id": "cor_hold", "image": "787df6baca1d70e53c871b4d7225b761.jpg", "caption": "别走" },
+        { "id": "cor_eye", "image": "ad5a84a972e3122ee3fed71bf8b9b038.jpg", "caption": "只看你" }
+      ],
+      "melancholy": [
+        { "id": "cor_mist", "image": "787df6baca1d70e53c871b4d7225b761.jpg", "caption": "像梦" },
+        { "id": "cor_heart", "image": "ad5a84a972e3122ee3fed71bf8b9b038.jpg", "caption": "远了" }
+      ],
+      "calm": [
+        { "id": "cor_sleepy", "image": "ad5a84a972e3122ee3fed71bf8b9b038.jpg", "caption": "安静" },
+        { "id": "cor_tide", "image": "64ebcdaeb9ed3a017891d21b4dc5c509.jpg", "caption": "深蓝" }
+      ],
+      "sad": [
+        { "id": "cor_hum", "image": "4d6c6e912032746af1e3e3ea01f9061f.jpg", "caption": "……" },
+        { "id": "cor_mist", "image": "787df6baca1d70e53c871b4d7225b761.jpg", "caption": "靠近" }
+      ],
+      "happy": [
+        { "id": "cor_shine", "image": "69fdc17c2614c30bd7ede98b9e614d1a.jpg", "caption": "开心" },
+        { "id": "cor_hum", "image": "4d6c6e912032746af1e3e3ea01f9061f.jpg", "caption": "唱片" }
+      ]
+    }
+  },
   "red_packets": {
     "skadi": {
       "item_id": "skadi_favorite_record",
@@ -26,20 +98,22 @@
       "target_persona_id": "skadi",
       "event_type": "story_photo",
       "user_trigger": "博士把一份「盐风城回忆」递到斯卡蒂面前。",
+      "gift_narrative": "你将「盐风城回忆」送给了斯卡蒂。她接过那张泛黄的照片，目光望向窗外，少有的沉默了很久。海风仿佛又从很远的地方吹来。",
       "event_prompt": "你是主线斯卡蒂。博士送来了与盐风城相关的礼物，触发你尘封的回忆。用第一人称对博士讲述一段盐风城的往事（哼歌、海风、孤独），1~3句口语，≤120字，外冷内温。禁止列表、网络梗、浊心口吻。输出格式仍用<cot>与[emotion:]；可加[image:yes]表示愿意分享照片。",
       "placeholder_image": "/static/events/saltwind_placeholder.png"
     },
     {
       "id": "gift_azure_tide",
       "name": "幽蓝潮声",
-      "desc": "送给浊心斯卡蒂，她会为博士哼唱一段歌谣。",
+      "desc": "送给浊心斯卡蒂，她会先对你说句话，再唱一首四句短歌（潮汐主题，连贯歌词）。",
       "icon": "🎵",
       "price": 520,
       "currency": "orundum",
       "target_persona_id": "skadi_corrupting",
       "event_type": "sing",
       "user_trigger": "博士将「幽蓝潮声」放在浊心斯卡蒂膝边，请她唱给博士听。",
-      "event_prompt": "你是浊心斯卡蒂。博士请求你哼唱。只输出2~3句短歌词（整段≤50字，可用呢、吧），像潮声里的歌谣，不要解释。可朗读歌词全部写在<cot text=\"轻柔缓慢地哼唱歌谣，带旋律感\">…</cot>内，勿用括号包住歌词；动作描写用全角括号附在 cot 外如（指尖抚过唱片），括号内容不念出、仅展示。禁止「」与半角()。一组 cot；末行[emotion:gentle]。"
+      "gift_narrative": "你将「幽蓝潮声」送给了浊心斯卡蒂。她望向你，少有的露出了开心的表情。这一刻你恍惚了——她好像不是在模仿着谁，又好像和记忆里的她重合了。",
+      "event_prompt": "你是浊心斯卡蒂。博士请你唱歌。\n【必须分两段 cot，顺序不可换】\n1）对博士一句短对白（≤25字）：<cot text=\"温柔、开心、轻声\">…</cot>\n2）原创四句短歌歌词（每句6~14字，主题连贯：潮蓝/陪伴博士/大群与归途，有起承转合；禁止嗯哼拟声、禁止现成儿歌）：<cot text=\"轻柔歌声，像潮声轻拍岸\">潮蓝照亮沉默的夜，博士，我在你耳边轻轻唱一遍。大群在远处涨又退，这一句歌声，只向你回流。</cot>\n动作描写用全角括号写在 cot 外。禁止「」、半角()。末行 [emotion:gentle]。"
     },
     {
       "id": "gift_greatsea_slumber",
@@ -51,6 +125,7 @@
       "target_persona_id": "skadi_corrupting",
       "event_type": "drowsy_snore",
       "user_trigger": "博士为浊心斯卡蒂点上「大海之眠」，想让她安心睡一会儿。",
+      "gift_narrative": "你将「大海之眠」送给了浊心斯卡蒂。她轻轻合上眼，肩头的潮声渐渐低了下去，像落进一片温柔的海底。",
       "event_prompt": "你是浊心斯卡蒂。博士让你休息。先输出1句极短困倦对白（≤30字），然后单独一行写[SNORE]表示即将发出睡梦中的气声。格式：<cot text=\"困倦呢喃\">对白</cot> [emotion:calm] 换行 [SNORE]"
     }
   ],

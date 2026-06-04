@@ -1,3 +1,5 @@
+import { enrichStickerFromOffer } from '@/utils/sticker-images.js'
+
 const GAME_KEY = 'game_state_v1'
 const REL_PREFIX = 'relation_'
 
@@ -7,6 +9,7 @@ const DEFAULT_RELATION = {
   affection: 100,
   joy: 50,
   lastRedPacketAt: 0,
+  lastStickerAt: 0,
   lastMoodDelta: 0
 }
 
@@ -83,7 +86,8 @@ export function applyMoodFromChat(
   emotion,
   serverOffer,
   joyAfter,
-  affectionAfter
+  affectionAfter,
+  stickerOffer
 ) {
   const rel = getRelation(personaId)
   const delta = Number(moodDelta) || 0
@@ -108,7 +112,15 @@ export function applyMoodFromChat(
     rel.lastRedPacketAt = Date.now() / 1000
     saveRelation(personaId, rel)
   }
-  return { relation: rel, redPacket: packet }
+
+  let sticker = enrichStickerFromOffer(personaId, stickerOffer)
+  if (sticker) {
+    sticker = { id: Date.now() + Math.random(), ...sticker, personaId }
+    rel.lastStickerAt = Date.now() / 1000
+    saveRelation(personaId, rel)
+  }
+
+  return { relation: rel, redPacket: packet, sticker }
 }
 
 export function canOfferRedPacketLocally(personaId) {
@@ -118,7 +130,8 @@ export function canOfferRedPacketLocally(personaId) {
   if (rel.lastRedPacketAt && Date.now() - rel.lastRedPacketAt * 1000 < cooldown) {
     return false
   }
-  return rel.joy >= 85
+  const joyMin = personaId === 'skadi' ? 72 : 68
+  return rel.joy >= joyMin
 }
 
 export function claimRedPacket(packet, rewardOrundum = 600) {

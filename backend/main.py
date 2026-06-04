@@ -64,6 +64,7 @@ class ChatRequest(BaseModel):
     joy: int | None = None
     affection: int | None = None
     last_red_packet_at: float | None = None
+    last_sticker_at: float | None = None
 
 
 class GiftTriggerRequest(BaseModel):
@@ -77,10 +78,11 @@ class TtsRequest(BaseModel):
     speed: float = 1.0
     emotion: str = "calm"
     context_text: str | None = None
+    hum: bool = False
 
 
 @app.get("/health")
-async def health(check_tts: bool = False):
+async def health(check_tts: bool = False, force_tts: bool = False):
     tts_configured = settings.tts_configured
     body: dict = {
         "status": "ok",
@@ -94,8 +96,9 @@ async def health(check_tts: bool = False):
         ),
     }
     if check_tts and tts_configured:
-        probe = await tts_doubao.probe_credentials()
+        probe = await tts_doubao.probe_credentials(force=force_tts)
         body["tts_auth_ok"] = probe.get("ok", False)
+        body["tts_auth_error"] = probe.get("auth_error", False)
         if not probe.get("ok"):
             body["tts_error"] = probe.get("error", "")
             body["tts_hint"] = probe.get("hint", "")
@@ -153,6 +156,7 @@ async def chat(req: ChatRequest):
             joy=req.joy,
             affection=req.affection,
             last_red_packet_at=req.last_red_packet_at,
+            last_sticker_at=req.last_sticker_at,
         )
         return result
     except Exception as e:
@@ -162,13 +166,21 @@ async def chat(req: ChatRequest):
 @app.post("/v1/tts")
 async def tts(req: TtsRequest):
     try:
-        result = await tts_doubao.synthesize(
-            text=req.text,
-            voice_type=req.voice_type,
-            speed=req.speed,
-            emotion=req.emotion,
-            context_text=req.context_text,
-        )
+        if req.hum:
+            result = await tts_doubao.synthesize_sing(
+                text=req.text,
+                voice_type=req.voice_type,
+                speed=req.speed,
+                emotion=req.emotion,
+            )
+        else:
+            result = await tts_doubao.synthesize(
+                text=req.text,
+                voice_type=req.voice_type,
+                speed=req.speed,
+                emotion=req.emotion,
+                context_text=req.context_text,
+            )
         return result
     except Exception as e:
         msg = str(e)
@@ -206,6 +218,7 @@ async def voice_chat(
     joy: int | None = Form(None),
     affection: int | None = Form(None),
     last_red_packet_at: float | None = Form(None),
+    last_sticker_at: float | None = Form(None),
 ):
     """
     一键链路：音频 → ASR → LLM → TTS
@@ -242,6 +255,7 @@ async def voice_chat(
             joy=joy,
             affection=affection,
             last_red_packet_at=last_red_packet_at,
+            last_sticker_at=last_sticker_at,
         )
 
         persona = get_persona(persona_id) or {}
@@ -259,20 +273,40 @@ async def voice_chat(
             or chat_result.get("stage_direction"),
         )
 
+        hum_audio_url = ""
+        hum_duration = 0
+        hum_text = chat_result.get("hum_text") or ""
+        if chat_result.get("hum_tts_text"):
+            hum_res = await tts_doubao.synthesize_sing(
+                text=chat_result["hum_tts_text"],
+                voice_type=voice,
+                speed=final_speed,
+                emotion=emotion,
+            )
+            hum_audio_url = hum_res.get("audio_url", "")
+            hum_duration = hum_res.get("duration_sec", 0)
+
         return {
             "user_text": user_text,
             "reply_text": chat_result["reply_text"],
             "stage_direction": chat_result.get("stage_direction", ""),
+            "hum_text": hum_text,
+            "hum_stage": chat_result.get("hum_stage", ""),
             "emotion": emotion,
             "mode": chat_result.get("mode", ""),
             "mood_delta": chat_result.get("mood_delta", 0),
             "joy_after": chat_result.get("joy_after"),
             "affection_after": chat_result.get("affection_after"),
             "red_packet_offer": chat_result.get("red_packet_offer"),
+            "sticker_offer": chat_result.get("sticker_offer"),
             "persona_id": chat_result.get("persona_id"),
             "persona_name": chat_result.get("persona_name"),
             "audio_url": tts_result["audio_url"],
             "duration_sec": tts_result.get("duration_sec", 0),
+            "hum_audio_url": hum_audio_url,
+            "hum_duration_sec": hum_duration,
+            "sing_followup": bool(chat_result.get("sing_followup")),
+            "default_voice": chat_result.get("default_voice"),
             "voice_type": tts_result["voice_type"],
             "speed_ratio": tts_result["speed_ratio"],
         }

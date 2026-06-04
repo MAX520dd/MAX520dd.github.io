@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import time
 import uuid
 from pathlib import Path
@@ -14,6 +15,8 @@ from services.persona import (
     speed_for_emotion,
 )
 
+logger = logging.getLogger(__name__)
+
 DOUBAO_V3_URL = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
 DOUBAO_V1_URL = "https://openspeech.bytedance.com/api/v1/tts"
 
@@ -27,6 +30,15 @@ CLONE_RESOURCE_CONFIGS: tuple[tuple[str, int], ...] = (
 _RESOURCE_TO_MODEL_TYPE = {rid: mt for rid, mt in CLONE_RESOURCE_CONFIGS}
 
 # 情绪 -> 豆包 context_texts（自然语言情感，仅首条生效）
+# 赠礼哼唱：豆包单向 HTTP + seed-tts-2.0-expressive + use_tag_parser（见 docs/doubao-tts-setup.md）
+SING_LYRICS_COT_HINT = (
+    "用轻柔、带旋律感的歌声吟唱，歌词吐字清晰、节奏舒缓，"
+    "句与句之间自然停顿，像潮声轻拍海岸"
+)
+
+# 兼容旧名
+SING_COT_HINT = SING_LYRICS_COT_HINT
+
 EMOTION_CONTEXT_TEXTS: dict[str, str] = {
     "happy": "用轻快、略带笑意的语气",
     "calm": "用平静、沉静的语气",
@@ -105,8 +117,57 @@ def _build_v3_clone_payload(
             model_type, context_text, use_tag_parser=use_tag_parser
         ),
     }
-    if use_tag_parser and settings.doubao_tts_model:
-        req_params["model"] = settings.doubao_tts_model
+    model = settings.doubao_tts_model
+    if use_tag_parser and model:
+        req_params["model"] = model
+    return {"user": {"uid": "ai-voice-chat"}, "req_params": req_params}
+
+
+def _apply_expressive_model(payload: dict[str, Any], force: bool) -> dict[str, Any]:
+    """哼唱等场景强制 seed-tts-2.0-expressive。"""
+    if not force:
+        return payload
+    rp = payload.setdefault("req_params", {})
+    if settings.doubao_use_tag_parser:
+        rp["model"] = settings.doubao_tts_model or "seed-tts-2.0-expressive"
+    return payload
+
+
+# 官方歌手合成：audio_params.emotion=sing（仅部分 2.0 音色，如灿灿）
+# 文档：https://www.volcengine.com/docs/6561/1257584 · V3：https://www.volcengine.com/docs/6561/1598757
+OFFICIAL_SING_VOICE_DEFAULT = "zh_female_cancan_mars_bigtts"
+
+
+def _build_v3_official_sing_payload(
+    text: str,
+    speaker: str,
+    *,
+    sing_mode: str = "auto",
+    bpm: int = 95,
+    emotion_scale: float = 4.0,
+    sing_score: str = "",
+) -> dict[str, Any]:
+    """V3 大模型 2.0 + enable_emotion + emotion=sing + sing_mode（非复刻 S_ 音色）。"""
+    plain = strip_display_markup(text).strip()
+    if not plain:
+        raise ValueError("歌唱文本为空")
+    additions: dict[str, Any] = {"sing_mode": sing_mode, "bpm": bpm}
+    if sing_mode == "manual" and sing_score.strip():
+        additions["sing_score"] = sing_score.strip()
+    scale = max(1.0, min(5.0, float(emotion_scale)))
+    req_params: dict[str, Any] = {
+        "text": plain,
+        "speaker": speaker,
+        "model": settings.doubao_sing_resource_id or "seed-tts-2.0",
+        "audio_params": {
+            "format": "mp3",
+            "sample_rate": 24000,
+            "emotion": "sing",
+            "enable_emotion": True,
+            "emotion_scale": scale,
+        },
+        "additions": json.dumps(additions, ensure_ascii=False),
+    }
     return {"user": {"uid": "ai-voice-chat"}, "req_params": req_params}
 
 
@@ -339,6 +400,123 @@ async def _post_json(
     return _extract_audio_bytes(data), rid
 
 
+async def synthesize_official_sing(
+    text: str,
+    voice_type: str | None = None,
+    save_filename: str | None = None,
+    *,
+    sing_mode: str | None = None,
+    bpm: int | None = None,
+    emotion_scale: float | None = None,
+) -> dict[str, Any]:
+    """
+    火山官方 emotion=sing（歌手音色 / SVS 规则）。
+    硬性要求：2.0 大模型音色（默认灿灿）、Resource-Id=seed-tts-2.0、enable_emotion=true。
+    复刻音色 S_ 传 sing 只会朗读，见 docs/doubao-tts-sing-emotion.md。
+    """
+    if not settings.tts_configured:
+        raise ValueError("豆包 TTS 未配置 DOUBAO_API_KEY")
+
+    voice = (voice_type or settings.doubao_sing_voice or OFFICIAL_SING_VOICE_DEFAULT).strip()
+    if _is_clone_voice(voice):
+        raise ValueError(
+            f"emotion=sing 不支持复刻音色 {voice}，请改用 zh_female_cancan_mars_bigtts 等 2.0 歌手音色"
+        )
+
+    reqid = str(uuid.uuid4())
+    resource_id = (settings.doubao_sing_resource_id or "seed-tts-2.0").strip()
+    payload = _build_v3_official_sing_payload(
+        text,
+        voice,
+        sing_mode=sing_mode or settings.doubao_sing_mode or "auto",
+        bpm=bpm if bpm is not None else settings.doubao_sing_bpm,
+        emotion_scale=emotion_scale
+        if emotion_scale is not None
+        else settings.doubao_sing_emotion_scale,
+    )
+
+    audio_bytes: bytes | None = None
+    used_rid = ""
+    errors: list[str] = []
+    resource_ids = [resource_id]
+    for rid in _standard_resource_ids_to_try():
+        if rid not in resource_ids:
+            resource_ids.append(rid)
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        for rid in resource_ids:
+            payload["req_params"]["model"] = rid
+            for headers in _v3_header_variants(rid, reqid):
+                try:
+                    audio_bytes, used_rid = await _post_v3_tts(client, headers, payload)
+                    break
+                except Exception as e:
+                    errors.append(f"[{rid}] {e}")
+            if audio_bytes:
+                resource_id = used_rid
+                break
+
+    if audio_bytes is None:
+        raise ValueError(errors[-1] if errors else "官方 sing 合成失败")
+
+    filename = save_filename or f"sing-{reqid}.mp3"
+    out_path: Path = settings.audio_dir / filename
+    out_path.write_bytes(audio_bytes)
+    audio_url = f"{settings.public_base_url.rstrip('/')}/static/audio/{filename}"
+    plain = strip_display_markup(text)
+    return {
+        "audio_url": audio_url,
+        "audio_path": str(out_path),
+        "filename": filename,
+        "voice_type": voice,
+        "resource_id": resource_id,
+        "speed_ratio": 1.0,
+        "emotion": "sing",
+        "duration_sec": _estimate_duration_sec(plain),
+        "sing_mode": "official_emotion_sing",
+    }
+
+
+async def synthesize_sing(
+    text: str,
+    voice_type: str | None = None,
+    speed: float = 1.0,
+    emotion: str = "gentle",
+    cot_hint: str | None = None,
+    save_filename: str | None = None,
+) -> dict[str, Any]:
+    """
+    复刻音色歌唱：表现力版 + <cot>歌词</cot>（不用灿灿 emotion=sing）。
+    """
+    from services.persona import (
+        normalize_lyrics_text,
+        prepare_tts_text,
+        speed_for_emotion,
+        strip_paren_from_raw,
+    )
+
+    voice = voice_type or settings.doubao_voice_type
+    hint = (cot_hint or "").strip() or SING_LYRICS_COT_HINT
+    raw = normalize_lyrics_text(strip_paren_from_raw(text))
+    if not raw.strip():
+        raise ValueError("歌词内容为空")
+    tts_text = prepare_tts_text(raw, emotion, voice, hint)
+    plain = strip_display_markup(tts_text)
+    if len(plain) > 96:
+        plain = plain[:92] + "……"
+        tts_text = prepare_tts_text(plain, emotion, voice, hint)
+    spd = max(0.72, speed_for_emotion(speed, emotion) - 0.12)
+    return await synthesize(
+        text=tts_text,
+        voice_type=voice,
+        speed=spd,
+        emotion=emotion,
+        context_text="",
+        save_filename=save_filename,
+        force_expressive=True,
+    )
+
+
 async def synthesize(
     text: str,
     voice_type: str | None = None,
@@ -346,6 +524,8 @@ async def synthesize(
     emotion: str = "calm",
     context_text: str | None = None,
     save_filename: str | None = None,
+    *,
+    force_expressive: bool = False,
 ) -> dict[str, Any]:
     if not settings.tts_configured:
         raise ValueError(
@@ -379,6 +559,7 @@ async def synthesize(
                     ctx,
                     use_tag_parser=use_tag_parser,
                 )
+                payload = _apply_expressive_model(payload, force_expressive)
                 for headers in _v3_header_variants(resource_id, reqid):
                     try:
                         audio_bytes, used_resource_id = await _post_v3_tts(

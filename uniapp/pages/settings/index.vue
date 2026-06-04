@@ -5,7 +5,7 @@
       <input
         class="input"
         v-model="serverBase"
-        placeholder="http://192.168.x.x:8010"
+        :placeholder="autoUrlHint || 'http://192.168.43.102:8010'"
         placeholder-class="placeholder"
       />
       <view v-if="serverWarn" class="warn-box">
@@ -114,6 +114,7 @@ export default {
   },
   onShow() {
     autoConfigureServer(true)
+    this.autoUrlHint = AUTO_SERVER_URL
     const raw = getBaseUrl() || uni.getStorageSync('server_base') || ''
     if (raw && !(isNativeMobileApp() && isLocalhostUrl(raw))) {
       this.serverBase = normalizeBaseUrl(raw)
@@ -166,39 +167,56 @@ export default {
       uni.showToast({ title: '已恢复自动地址', icon: 'success' })
     },
     async testConnection() {
+      const target = normalizeBaseUrl(this.serverBase || AUTO_SERVER_URL)
+      if (!target) {
+        uni.showModal({ title: '地址无效', content: '请填写服务端地址', showCancel: false })
+        return
+      }
       try {
-        this.serverBase = setBaseUrl(this.serverBase)
+        this.serverBase = setBaseUrl(target)
         this.serverWarn = false
       } catch (e) {
         this.healthInfo = e.message || ''
         uni.showModal({ title: '地址无效', content: e.message, showCancel: false })
         return
       }
+      uni.showLoading({ title: '测试中...' })
       try {
-        const h = await healthCheck(true)
-        let line = `已连接 | LLM:${h.llm_configured ? '✓' : '✗'} TTS配置:${h.tts_configured ? '✓' : '✗'}`
+        const h = await healthCheck(true, true)
+        let line = `${this.serverBase} | 已连接`
+        line += ` | LLM:${h.llm_configured ? '✓' : '✗'} TTS:${h.tts_configured ? '✓' : '✗'}`
         if (h.tts_configured) {
-          line += ` TTS鉴权:${h.tts_auth_ok ? '✓' : '✗'}`
+          line += ` 鉴权:${h.tts_auth_ok ? '✓' : '✗'}`
         }
         line += ` ASR:${h.asr_enabled ? '开' : '关'}`
+        if (h.tts_error) {
+          line += `\n${String(h.tts_error).slice(0, 120)}`
+        }
         this.healthInfo = line
         if (h.tts_configured && h.tts_auth_ok === false) {
-          uni.showModal({
-            title: 'TTS 鉴权失败',
-            content: (h.tts_hint || h.tts_error || '请更新 backend/.env 的 DOUBAO_API_KEY').slice(0, 200),
-            showCancel: false
-          })
+          const isAuth = !!h.tts_auth_error
+          const title = isAuth ? 'TTS 鉴权失败' : 'TTS 探测失败'
+          const content = [
+            h.tts_error || '',
+            h.tts_hint || (isAuth ? '请检查 backend/.env 的 DOUBAO_API_KEY 并重启后端' : '请检查音色与 DOUBAO_CLONE_RESOURCE_ID 配置')
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+            .slice(0, 400)
+          uni.showModal({ title, content, showCancel: false })
         } else {
           uni.showToast({ title: '连接成功', icon: 'success' })
         }
       } catch (e) {
         const msg = formatNetworkError(e)
-        this.healthInfo = '连接失败: ' + msg
+        this.healthInfo = `${this.serverBase} | 连接失败: ${msg}`
         uni.showModal({
           title: '连接失败',
-          content: msg,
+          content: `${this.serverBase}\n\n${msg}`,
           showCancel: false
         })
+      } finally {
+        uni.hideLoading()
       }
     },
     saveSettings() {

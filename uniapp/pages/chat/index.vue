@@ -18,7 +18,34 @@
         class="msg-row"
         :class="msg.role"
       >
-        <template v-if="msg.type === 'red_packet'">
+        <template v-if="msg.type === 'gift_narrative'">
+          <view class="narrative-wrap">
+            <text class="narrative-text">{{ msg.content }}</text>
+          </view>
+        </template>
+
+        <template v-else-if="msg.type === 'sticker'">
+          <image
+            class="avatar"
+            :src="assistantAvatar"
+            mode="aspectFill"
+            @tap.stop="openRelationPanel"
+          />
+          <view class="sticker-wrap">
+            <view class="sticker-bubble">
+              <image
+                v-if="msg.imageUrl"
+                class="sticker-img"
+                :src="resolveMediaUrl(msg.imageUrl)"
+                mode="aspectFit"
+              />
+              <text v-else class="sticker-emoji">{{ msg.emoji || '…' }}</text>
+            </view>
+            <text v-if="msg.caption" class="sticker-caption">{{ msg.caption }}</text>
+          </view>
+        </template>
+
+        <template v-else-if="msg.type === 'red_packet'">
           <image
             class="avatar"
             :src="assistantAvatar"
@@ -283,12 +310,17 @@ export default {
         desc: m.desc || '',
         icon: m.icon || '',
         itemId: m.itemId || '',
-        claimed: !!m.claimed
+        claimed: !!m.claimed,
+        emoji: m.emoji || '',
+        caption: m.caption || '',
+        imageUrl: m.imageUrl || m.image_url || '',
+        stickerId: m.stickerId || ''
       }))
     },
     resolveMediaUrl(url) {
       if (!url) return ''
       if (url.startsWith('http')) return url
+      if (url.startsWith('/static/')) return url
       const base = getBaseUrl().replace(/\/$/, '')
       return base + url
     },
@@ -305,17 +337,19 @@ export default {
       return {
         joy: rel.joy,
         affection: rel.affection,
-        lastRedPacketAt: rel.lastRedPacketAt || null
+        lastRedPacketAt: rel.lastRedPacketAt || null,
+        lastStickerAt: rel.lastStickerAt || null
       }
     },
     handleChatMeta(chatRes) {
-      const { relation, redPacket } = applyMoodFromChat(
+      const { relation, redPacket, sticker } = applyMoodFromChat(
         this.personaId,
         chatRes.mood_delta,
         chatRes.emotion,
         chatRes.red_packet_offer,
         chatRes.joy_after,
-        chatRes.affection_after
+        chatRes.affection_after,
+        chatRes.sticker_offer
       )
       this.relation = relation
       if (redPacket) {
@@ -329,6 +363,24 @@ export default {
           claimed: false
         })
       }
+      return sticker
+    },
+    appendStickerMessage(sticker, delayMs = 400) {
+      if (!sticker || !sticker.imageUrl) return
+      const push = () => {
+        this.appendMessage({
+          role: 'assistant',
+          type: 'sticker',
+          content: sticker.caption || sticker.emoji || '…',
+          emoji: sticker.emoji || '🌊',
+          caption: sticker.caption || '',
+          imageUrl: sticker.imageUrl || '',
+          stickerId: sticker.stickerId || '',
+          showText: false
+        })
+      }
+      if (delayMs > 0) setTimeout(push, delayMs)
+      else push()
     },
     claimRedPacket(msg) {
       if (msg.claimed) return
@@ -345,18 +397,50 @@ export default {
       this.appendGiftEventMessages(ev)
     },
     appendGiftEventMessages(ev) {
-      if (ev.reply_text) {
-        const aiMsg = this.appendMessage({
-          role: 'assistant',
-          type: ev.audio_url ? 'voice' : 'text',
-          content: ev.reply_text,
-          stage: ev.stage_direction || '',
-          audio_url: ev.audio_url || '',
-          image_url: ev.image_url || '',
-          duration: ev.duration_sec || estimateDuration(ev.reply_text),
+      if (ev.narrative_text) {
+        this.appendMessage({
+          role: 'system',
+          type: 'gift_narrative',
+          content: ev.narrative_text,
           showText: true
         })
-        if (ev.audio_url) this.playVoice(aiMsg)
+      }
+      const isSing = ev.event_type === 'sing'
+      if (ev.reply_text) {
+        const replyAudio = isSing
+          ? ev.audio_url_opening || ''
+          : ev.audio_url || ev.audio_url_opening || ''
+        const replyMsg = this.appendMessage({
+          role: 'assistant',
+          type: replyAudio ? 'voice' : 'text',
+          content: ev.reply_text,
+          stage: isSing ? '' : ev.stage_direction || '',
+          audio_url: replyAudio,
+          image_url: ev.image_url || '',
+          duration: estimateDuration(ev.reply_text),
+          showText: true
+        })
+        if (replyAudio) this.playVoice(replyMsg)
+      }
+      const songText = ev.lyrics_text || ''
+      if (isSing && ev.audio_url) {
+        const delayMs = ev.audio_url_opening ? estimateDuration(ev.reply_text) * 1000 + 600 : 0
+        const playSong = () => {
+          const songMsg = this.appendMessage({
+            role: 'assistant',
+            type: 'voice',
+            content: songText || '……',
+            stage: ev.stage_direction || '歌唱',
+            audio_url: ev.audio_url,
+            duration: ev.duration_sec || estimateDuration(songText),
+            showText: true
+          })
+          this.playVoice(songMsg)
+        }
+        if (delayMs > 0) setTimeout(playSong, delayMs)
+        else playSong()
+      } else if (isSing && ev.tts_error) {
+        uni.showToast({ title: ev.tts_error.slice(0, 80), icon: 'none', duration: 3500 })
       }
       if (ev.audio_url_snore) {
         setTimeout(() => {
@@ -409,6 +493,7 @@ export default {
         .map((m) => ({ role: m.role, content: m.content }))
     },
     appendMessage(opts) {
+      const img = opts.image_url || opts.imageUrl || ''
       const msg = {
         id: Date.now() + Math.random(),
         role: opts.role,
@@ -416,8 +501,18 @@ export default {
         content: opts.content || '',
         stage: opts.stage || '',
         audio_url: resolveAudioUrl(opts.audio_url || ''),
-        duration: opts.duration || estimateDuration(opts.content),
-        showText: opts.showText !== false
+        image_url: img,
+        imageUrl: img,
+        duration: opts.duration ?? estimateDuration(opts.content),
+        showText: opts.showText !== false,
+        emoji: opts.emoji || '',
+        caption: opts.caption || '',
+        stickerId: opts.stickerId || '',
+        title: opts.title || '',
+        desc: opts.desc || '',
+        icon: opts.icon || '',
+        itemId: opts.itemId || '',
+        claimed: !!opts.claimed
       }
       this.messages.push(msg)
       saveMessages(this.personaId, this.messages)
@@ -478,14 +573,16 @@ export default {
           getDoctorStatePayload(),
           this.getRelationContext()
         )
-        this.handleChatMeta(chatRes)
+        const pendingSticker = this.handleChatMeta(chatRes)
         this.loadingText = '合成语音...'
+        const voice = this.effectiveVoiceType || chatRes.default_voice
         const ttsRes = await synthesizeTts(
           chatRes.tts_text || chatRes.reply_text,
-          this.effectiveVoiceType || chatRes.default_voice,
+          voice,
           this.speed,
           chatRes.emotion,
-          chatRes.tts_context || chatRes.stage_direction
+          chatRes.tts_context || chatRes.stage_direction,
+          false
         )
         const dur = ttsRes.duration_sec || estimateDuration(chatRes.reply_text)
         const aiMsg = this.appendMessage({
@@ -498,6 +595,31 @@ export default {
           showText: true
         })
         this.playVoice(aiMsg)
+        this.appendStickerMessage(pendingSticker, dur * 1000 + 350)
+        if (chatRes.hum_tts_text || chatRes.sing_followup) {
+          const humTts = await synthesizeTts(
+            chatRes.hum_tts_text || chatRes.hum_text || '潮声推着月光靠岸，我当风一样停在博士身边。',
+            voice,
+            this.speed,
+            chatRes.emotion,
+            '',
+            true
+          )
+          const humDur = humTts.duration_sec || estimateDuration(chatRes.hum_text || '……')
+          const delayMs = dur * 1000 + 500
+          setTimeout(() => {
+            const humMsg = this.appendMessage({
+              role: 'assistant',
+              type: 'voice',
+              content: chatRes.hum_text || '……',
+              stage: chatRes.hum_stage || '歌唱',
+              audio_url: humTts.audio_url,
+              duration: humDur,
+              showText: true
+            })
+            this.playVoice(humMsg)
+          }, delayMs)
+        }
       } catch (e) {
         uni.showToast({ title: this.formatError(e), icon: 'none', duration: 3500 })
       } finally {
@@ -556,8 +678,9 @@ export default {
         form.joy = String(rel.joy)
         form.affection = String(rel.affection)
         if (rel.lastRedPacketAt) form.last_red_packet_at = String(rel.lastRedPacketAt)
+        if (rel.lastStickerAt) form.last_sticker_at = String(rel.lastStickerAt)
         const res = await uploadVoiceChat(filePath, form)
-        this.handleChatMeta(res)
+        const pendingSticker = this.handleChatMeta(res)
         if (res.user_text) {
           const userIdx = this.messages.length - 1
           const um = this.messages[userIdx]
@@ -578,6 +701,37 @@ export default {
           showText: true
         })
         if (res.audio_url) this.playVoice(aiMsg)
+        this.appendStickerMessage(pendingSticker, dur * 1000 + 350)
+        if (res.hum_audio_url || res.sing_followup) {
+          if (!res.hum_audio_url && res.sing_followup) {
+            const humTts = await synthesizeTts(
+              res.hum_text || '潮蓝照亮沉默的夜，博士，我在你耳边轻轻唱一遍。',
+              this.effectiveVoiceType || res.default_voice,
+              this.speed,
+              res.emotion || 'gentle',
+              '',
+              true
+            )
+            res.hum_audio_url = humTts.audio_url
+            res.hum_duration_sec = humTts.duration_sec
+            res.hum_text = res.hum_text || '……'
+          }
+        }
+        if (res.hum_audio_url) {
+          const humDur = res.hum_duration_sec || estimateDuration(res.hum_text || '……')
+          setTimeout(() => {
+            const humMsg = this.appendMessage({
+              role: 'assistant',
+              type: 'voice',
+              content: res.hum_text || '……',
+              stage: res.hum_stage || '歌唱',
+              audio_url: res.hum_audio_url,
+              duration: humDur,
+              showText: true
+            })
+            this.playVoice(humMsg)
+          }, dur * 1000 + 500)
+        }
       } catch (e) {
         uni.showToast({ title: this.formatError(e), icon: 'none', duration: 3500 })
       } finally {
@@ -749,6 +903,19 @@ export default {
     transform: scaleY(1.2);
   }
 }
+.narrative-wrap {
+  width: 100%;
+  padding: 24rpx 32rpx;
+  box-sizing: border-box;
+}
+.narrative-text {
+  display: block;
+  font-size: 28rpx;
+  line-height: 1.65;
+  color: #5c6b7a;
+  text-align: center;
+  font-style: italic;
+}
 .loading-tip {
   text-align: center;
   font-size: 24rpx;
@@ -846,6 +1013,34 @@ export default {
   font-size: 24rpx;
   color: rgba(255, 255, 255, 0.85);
   margin-top: 6rpx;
+}
+.sticker-wrap {
+  max-width: 72%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.sticker-bubble {
+  background: #fff;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+.sticker-emoji {
+  font-size: 96rpx;
+  line-height: 1.1;
+}
+.sticker-img {
+  width: 280rpx;
+  max-width: 72vw;
+  height: 280rpx;
+  border-radius: 8rpx;
+}
+.sticker-caption {
+  font-size: 22rpx;
+  color: #888;
+  margin-top: 8rpx;
+  padding-left: 4rpx;
 }
 .event-image {
   width: 400rpx;

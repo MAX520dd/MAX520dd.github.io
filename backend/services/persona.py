@@ -112,6 +112,59 @@ _BLUE_COLD_KEYWORDS = (
     "海嗣", "同化", "大群", "血亲", "神", "伊莎玛拉",
 )
 
+# 用户请求唱歌/哼唱
+_SING_REQUEST_KEYWORDS = (
+    "唱", "哼", "歌谣", "歌曲", "唱一首", "唱一段", "哼一段", "哼一首", "唱给", "哼给",
+)
+
+_HUM_ONLY_HAN = frozenset("嗯哼唔啊呜噢哦唉诶呀呐呢吧哈呵")
+
+# 人设专属备用短歌（4 句连贯，LLM 失败或输出拟声时回退）
+SING_LYRICS_FALLBACK: dict[str, str] = {
+    "skadi": (
+        "潮声推着月光靠岸，"
+        "我当风一样停在博士身边。"
+        "若你问归途有多远——"
+        "我就在歌声里，把答案唱圆。"
+    ),
+    "skadi_corrupting": (
+        "潮蓝照亮沉默的夜，"
+        "博士，我在你耳边轻轻唱一遍。"
+        "大群在远处涨又退，"
+        "这一句歌声，只向你回流。"
+    ),
+}
+_DEFAULT_SING_LYRICS = SING_LYRICS_FALLBACK["skadi_corrupting"]
+
+# 兼容旧名
+HUM_FALLBACK_TEXT = SING_LYRICS_FALLBACK["skadi_corrupting"]
+
+def sing_friendly_mode(persona: dict[str, Any]) -> str:
+    """唱歌请求时避免 cold 模式导致拒唱，优先脆弱/温柔人设。"""
+    modes: list[str] = persona.get("modes") or []
+    for m in ("vulnerable", "gentle"):
+        if m in modes:
+            return m
+    return modes[0] if modes else ""
+
+
+SING_LYRICS_INSTRUCTION = (
+    "【博士请你唱歌 — 必须遵守】\n"
+    "**不得拒绝**（禁止「不唱」「很久没唱」）；第一段欣然答应，如「好，我为博士唱一首。」\n"
+    "须输出**两段** <cot>，顺序不可换：\n"
+    "1）对博士的一句短对白（≤25字），<cot text=\"温柔轻声\">…</cot>\n"
+    "2）**原创短歌歌词**：恰好 **4 句**，每句 6~14 字；四句须主题连贯（潮汐/海风/陪伴博士/归途），"
+    "有起承转合，后两句可与前两句押韵或呼应；禁止嗯哼拟声、禁止《小星星》等现成儿歌、"
+    "禁止断裂无意义的字堆砌。\n"
+    "示例第二段：<cot text=\"轻柔歌声，像潮声轻拍岸\">"
+    "潮声推着月光靠岸，我当风一样停在博士身边。"
+    "若你问归途有多远——我就在歌声里，把答案唱圆。</cot>\n"
+    "动作描写用全角括号写在 cot 外。末行 [emotion:gentle]。"
+)
+
+# 兼容旧名
+SING_HUM_INSTRUCTION = SING_LYRICS_INSTRUCTION
+
 
 def load_personas() -> list[dict[str, Any]]:
     path = settings.personas_path
@@ -460,7 +513,7 @@ def _emotion_instruction(persona: dict[str, Any]) -> str:
         "1. **可朗读对白**只写在 <cot text=\"语气描述\">对白</cot> 内，不要在对白外加括号。\n"
         "2. **不可朗读**的动作、环境、神态补充一律用全角括号（…）写在 cot 外或句末；"
         "括号内文字只显示在气泡下方，不会念出来。禁止「」、半角()、[]。\n"
-        "3. 每轮只用一组 cot 包裹全部要对博士说出口的台词；哼唱/歌词也写在 cot 内，勿用括号包住歌词。\n"
+        "3. 平常对话只用一组 cot。若博士请你唱/哼，按【唱歌】专条输出两段 cot（对白 + 四句连贯歌词）。\n"
         "4. 可选 [tts_cot:更细的语气描述] 在情绪标签上一行。\n"
         f"5. 最后一行单独标注情绪标签，仅从以下选一：{tags}\n"
         "6. 禁止 {{\"additions\"…}} 与旧式 <cot>描述</cot>对白 混用。"
@@ -531,6 +584,132 @@ def build_system_prompt(
     return "\n".join(parts)
 
 
+def is_sing_request(user_text: str) -> bool:
+    t = (user_text or "").strip()
+    if not t:
+        return False
+    return any(k in t for k in _SING_REQUEST_KEYWORDS)
+
+
+def get_sing_lyrics_fallback(persona_id: str = "") -> str:
+    return SING_LYRICS_FALLBACK.get(persona_id, _DEFAULT_SING_LYRICS)
+
+
+def _join_lyric_segments(segments: list[str]) -> str:
+    cleaned: list[str] = []
+    for seg in segments:
+        s = seg.strip().rstrip("。！？；")
+        if s:
+            cleaned.append(s)
+    if not cleaned:
+        return ""
+    if len(cleaned) == 1:
+        return cleaned[0]
+    return "，".join(cleaned)
+
+
+def _lyrics_lines_to_tts(text: str) -> str:
+    """多行歌词合并为 TTS 友好的一句（句间逗号停顿，保留句内标点）。"""
+    t = text.strip()
+    if not t:
+        return ""
+    lines = [ln.strip() for ln in re.split(r"[\n／/]+", t) if ln.strip()]
+    if len(lines) >= 2:
+        return _join_lyric_segments(lines)
+    segs = [s for s in re.split(r"(?<=[。！？；])", lines[0]) if s.strip()]
+    if len(segs) >= 2:
+        return _join_lyric_segments(segs)
+    return lines[0]
+
+
+def normalize_lyrics_text(raw: str, persona_id: str = "") -> str:
+    """校验并整理歌词；拟声或过短则回退为人设备用短歌。"""
+    t = strip_display_markup(raw).strip()
+    if not t:
+        return get_sing_lyrics_fallback(persona_id)
+    t = re.sub(r"[【】\[\]「」""'']", "", t)
+    tts_line = _lyrics_lines_to_tts(t)
+    han = [c for c in tts_line if "\u4e00" <= c <= "\u9fff"]
+    if not han:
+        return get_sing_lyrics_fallback(persona_id)
+    if len(han) <= 8 and all(c in _HUM_ONLY_HAN for c in han):
+        return get_sing_lyrics_fallback(persona_id)
+    if len(han) < 16:
+        return get_sing_lyrics_fallback(persona_id)
+    if len(han) > 80:
+        parts = tts_line.split("，")
+        tts_line = "，".join(parts[:4]) if len(parts) >= 4 else tts_line[:80]
+    return tts_line
+
+
+def normalize_hum_text(raw: str, persona_id: str = "") -> str:
+    """兼容旧名，实为歌词规范化。"""
+    return normalize_lyrics_text(raw, persona_id)
+
+
+def _stage_opening_only(body: str, after_index: int = 0) -> str:
+    """唱歌时：对白气泡下方只展示括号旁白，不把「清哼」类 cot 语气写进 stage。"""
+    tail = body[after_index:] if after_index else body
+    _, asides = extract_paren_asides(tail)
+    return merge_stage_caption("", asides)
+
+
+def build_sing_chat_parts(raw: str, persona_id: str = "") -> dict[str, Any]:
+    """
+    唱歌：对白 + 四句连贯歌词（失败时用人设备用短歌，保证第二条语音）。
+    """
+    from services import tts_doubao
+
+    _, body = parse_mood_delta(raw)
+    body = normalize_roleplay_brackets(strip_think_tags(body))
+    emotion = "gentle"
+    em = _EMOTION_RE.search(body)
+    if em:
+        emotion = em.group(1).lower()
+
+    matches = list(_COT_TEXT_ATTR_RE.finditer(body))
+    hum_hint = tts_doubao.SING_LYRICS_COT_HINT
+    opening = ""
+    hum_raw = get_sing_lyrics_fallback(persona_id)
+    stage = ""
+
+    if len(matches) >= 2:
+        open_speech, _ = extract_paren_asides(matches[0].group(2))
+        lyrics_speech, _ = extract_paren_asides(matches[1].group(2))
+        opening = strip_display_markup(open_speech) or open_speech.strip()
+        hum_raw = normalize_lyrics_text(lyrics_speech, persona_id)
+        hum_hint = matches[1].group(1).strip() or hum_hint
+        stage = _stage_opening_only(body, matches[0].end())
+    elif len(matches) == 1:
+        open_speech, _ = extract_paren_asides(matches[0].group(2))
+        opening = strip_display_markup(open_speech) or open_speech.strip()
+        hum_raw = get_sing_lyrics_fallback(persona_id)
+        stage = _stage_opening_only(body, matches[0].end())
+    else:
+        opening, emotion, tts_speech, _ = parse_emotion_and_clean(body)
+        if not opening:
+            opening = strip_display_markup(tts_speech) or tts_speech
+        hum_raw = get_sing_lyrics_fallback(persona_id)
+        stage = _stage_opening_only(body)
+
+    if not opening.strip():
+        opening = "好，我为博士唱一首。"
+
+    return {
+        "opening": opening.strip(),
+        "hum_raw": hum_raw,
+        "emotion": emotion,
+        "stage": stage,
+        "hum_hint": hum_hint,
+    }
+
+
+def parse_sing_dual_cot(raw: str) -> tuple[str, str, str, str, str]:
+    """兼容旧调用；见 build_sing_chat_parts。"""
+    p = build_sing_chat_parts(raw)
+    return p["opening"], p["hum_raw"], p["emotion"], p["stage"], p["hum_hint"]
+
+
 def build_messages(
     persona: dict[str, Any],
     user_text: str,
@@ -539,10 +718,15 @@ def build_messages(
     doctor_state: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     resolved_mode = mode or resolve_mode(persona, user_text, history, "auto")
+    if is_sing_request(user_text) and persona.get("id") in ("skadi_corrupting", "skadi"):
+        resolved_mode = sing_friendly_mode(persona)
+    system_content = build_system_prompt(persona, resolved_mode, doctor_state)
+    if is_sing_request(user_text) and persona.get("id") in ("skadi_corrupting", "skadi"):
+        system_content = f"{system_content}\n\n{SING_LYRICS_INSTRUCTION}"
     messages: list[dict[str, str]] = [
         {
             "role": "system",
-            "content": build_system_prompt(persona, resolved_mode, doctor_state),
+            "content": system_content,
         },
     ]
 

@@ -5,7 +5,8 @@
 | 说明 | 链接 |
 |------|------|
 | **TTS 总览 / 能力说明（本项目主索引）** | [豆包语音文档 162929](https://www.volcengine.com/docs/6561/162929?lang=zh) |
-| HTTP 单向流式 V3（当前接入） | [1598757](https://www.volcengine.com/docs/6561/1598757?lang=zh) |
+| HTTP 单向流式 V3（官方） | [1598757](https://www.volcengine.com/docs/6561/1598757?lang=zh) · [§2 HTTP Chunked](https://www.volcengine.com/docs/6561/1598757?lang=zh#_2-http-chunked格式接口说明) |
+| **HTTP Chunked 知识库（本项目录入）** | [doubao-tts-v3-http-chunked.md](doubao-tts-v3-http-chunked.md) |
 | API 接入 FAQ | [111586](https://www.volcengine.com/docs/6561/111586?lang=zh) |
 | 产品文档首页 | [6561](https://www.volcengine.com/docs/6561?lang=zh) |
 
@@ -29,7 +30,7 @@ DOUBAO_TTS_MODEL=seed-tts-2.0-expressive
 
 `DOUBAO_ACCESS_TOKEN` 与 `DOUBAO_API_KEY` **等价**。
 
-官方文档：[HTTP 单向流式 V3](https://www.volcengine.com/docs/6561/1598757)
+官方文档：[HTTP 单向流式 V3](https://www.volcengine.com/docs/6561/1598757?lang=zh#_2-http-chunked格式接口说明)（详细请求/响应见 [doubao-tts-v3-http-chunked.md](doubao-tts-v3-http-chunked.md)）
 
 ## 单向 HTTP：情感标签（cot 解析）
 
@@ -78,10 +79,25 @@ DOUBAO_TTS_MODEL=seed-tts-2.0-expressive
 | ICL 1.0 并发 | `seed-icl-1.0-concurr` | `3` |
 | ICL 1.0 | `seed-icl-1.0` | `1` |
 
+## 歌唱 / 短歌歌词（复刻 cot，默认方案）
+
+不使用灿灿 `emotion:sing`（音质差，见 [doubao-tts-sing-emotion.md](doubao-tts-sing-emotion.md) 仅作参考）。
+
+**浊心/斯卡蒂复刻音色** + `seed-tts-2.0-expressive` + `use_tag_parser`：
+
+| 项 | 说明 |
+|----|------|
+| 对白 | 第一段 `<cot>`，正常语气 |
+| 歌词 | 第二段四句连贯原创短歌；失败时回退 `persona.SING_LYRICS_FALLBACK` |
+| 函数 | `tts_doubao.synthesize_sing()`，`POST /v1/tts` 传 `hum: true` |
+| 对话 | 用户说「唱/哼」时 `llm_client` 返回 `hum_tts_text`，前端连续两条语音 |
+
+cot 示例：`<cot text="轻柔歌声，像潮声轻拍岸">潮声推着月光靠岸，我当风一样停在博士身边。…</cot>`
+
 ## 测试
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/tts \
+curl -X POST http://127.0.0.1:8010/v1/tts \
   -H "Content-Type: application/json" \
   -d '{"text":"博士，我在这里呢。","emotion":"gentle"}'
 ```

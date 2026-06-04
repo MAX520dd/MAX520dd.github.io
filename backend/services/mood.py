@@ -9,6 +9,16 @@ from services.game_catalog import get_red_packet_for_persona, load_catalog
 _POSITIVE_EMOTIONS = frozenset({"happy", "gentle"})
 _NEGATIVE_EMOTIONS = frozenset({"cold", "sad", "melancholy", "possessive"})
 
+# 红包（特殊礼物）触发：原 joy≥85 过严，多数对话达不到
+_RED_PACKET_JOY_MIN: dict[str, int] = {
+    "skadi": 72,
+    "skadi_corrupting": 68,
+}
+_RED_PACKET_EMOTIONS: dict[str, frozenset[str]] = {
+    "skadi": frozenset({"happy", "gentle", "calm", "melancholy"}),
+    "skadi_corrupting": frozenset({"happy", "gentle", "calm", "possessive", "melancholy"}),
+}
+
 _EMOTION_WEIGHT = {
     "happy": 1.2,
     "gentle": 1.1,
@@ -51,11 +61,17 @@ def evaluate_red_packet_offer(
     if last_red_packet_at and (now_ts - last_red_packet_at) < cooldown:
         return None
 
-    if emotion not in _POSITIVE_EMOTIONS:
+    allowed = _RED_PACKET_EMOTIONS.get(persona_id, _POSITIVE_EMOTIONS)
+    if emotion not in allowed:
         return None
 
+    joy_min = _RED_PACKET_JOY_MIN.get(persona_id, 75)
     joy_after = clamp(joy_before + mood_delta)
-    if joy_after < 85:
+    if joy_after < joy_min:
+        return None
+
+    # 平淡情绪需本轮明显回暖
+    if emotion in ("calm", "melancholy", "possessive") and mood_delta < 3:
         return None
 
     packet = get_red_packet_for_persona(persona_id)

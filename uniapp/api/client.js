@@ -2,7 +2,8 @@ import { autoConfigureServer } from '@/utils/server-auto.js'
 
 const STORAGE_KEY = 'server_base'
 /** 模拟器 / HBuilder 浏览器调试；真机请在设置页填写 Mac 局域网地址 */
-const DEFAULT_BASE_DEV = 'http://127.0.0.1:8010'
+/** 浏览器 / 模拟器调试默认后端（与 config/server.local.js 保持一致） */
+const DEFAULT_BASE_DEV = 'http://192.168.43.102:8010'
 const DEFAULT_PORT_HINT = '8010'
 
 /** 补全 http://，去掉误输入的前导 / */
@@ -121,13 +122,16 @@ export function request(options) {
   })
 }
 
-export async function healthCheck(checkTts = false) {
-  const q = checkTts ? '?check_tts=true' : ''
+export async function healthCheck(checkTts = false, forceTts = false) {
+  const params = []
+  if (checkTts) params.push('check_tts=true')
+  if (forceTts) params.push('force_tts=true')
+  const q = params.length ? `?${params.join('&')}` : ''
   const data = await request({ url: `/health${q}` })
   const body = parseHealthBody(data)
   if (!body) {
     throw new Error(
-      `连上的不是本项目的语音后端（端口可能被 HBuilder 占用）。请用 ${DEFAULT_PORT_HINT} 启动后端，并填 http://Mac的IP:${DEFAULT_PORT_HINT}`
+      `连上的不是本项目的语音后端（端口可能被 HBuilder 占用）。请用 ${DEFAULT_PORT_HINT} 启动后端，默认地址 ${DEFAULT_BASE_DEV}`
     )
   }
   return body
@@ -173,6 +177,9 @@ export async function chatText(text, personaId, history, mode, doctorState, rela
     if (relationCtx.lastRedPacketAt) {
       data.last_red_packet_at = relationCtx.lastRedPacketAt
     }
+    if (relationCtx.lastStickerAt) {
+      data.last_sticker_at = relationCtx.lastStickerAt
+    }
   }
   return request({
     url: '/v1/chat',
@@ -181,7 +188,7 @@ export async function chatText(text, personaId, history, mode, doctorState, rela
   })
 }
 
-export async function synthesizeTts(text, voiceType, speed, emotion, contextText) {
+export async function synthesizeTts(text, voiceType, speed, emotion, contextText, hum = false) {
   return request({
     url: '/v1/tts',
     method: 'POST',
@@ -190,7 +197,8 @@ export async function synthesizeTts(text, voiceType, speed, emotion, contextText
       voice_type: voiceType || undefined,
       speed: speed ?? 1.0,
       emotion: emotion || 'calm',
-      context_text: contextText || undefined
+      context_text: contextText || undefined,
+      hum: !!hum
     }
   })
 }

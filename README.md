@@ -445,6 +445,7 @@ ai-voice-chat/
 |------|------|
 | [docs/deploy-mac.md](docs/deploy-mac.md) | Mac 部署、内网与穿透补充 |
 | [docs/doubao-tts-setup.md](docs/doubao-tts-setup.md) | TTS、cot、复刻 Resource-Id、官方文档索引 |
+| [docs/doubao-tts-v3-http-chunked.md](docs/doubao-tts-v3-http-chunked.md) | V3 HTTP Chunked 单向接口知识库（[官方 1598757 §2](https://www.volcengine.com/docs/6561/1598757?lang=zh#_2-http-chunked格式接口说明)） |
 | [docs/ark-inference-api.md](docs/ark-inference-api.md) | 方舟推理 API 说明 |
 | [docs/pack-android-ios.md](docs/pack-android-ios.md) | HBuilderX 运行、自定义基座、云打包 |
 | [docs/dcloud-appid.md](docs/dcloud-appid.md) | DCloud AppID 申请 |
