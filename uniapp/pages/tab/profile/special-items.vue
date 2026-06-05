@@ -37,6 +37,8 @@ export default {
   methods: {
     sourceLabel(s) {
       if (s === 'red_packet') return '特殊红包'
+      if (s === 'easter_egg') return '隐藏彩蛋'
+      if (s === 'contextual_gift') return '关怀赠礼'
       if (s === 'gift') return '赠礼事件'
       return '收藏'
     },

@@ -5,14 +5,15 @@
       <input
         class="input"
         v-model="serverBase"
-        :placeholder="autoUrlHint || 'http://192.168.43.102:8010'"
+        :placeholder="autoUrlHint || 'http://局域网IP:8010'"
         placeholder-class="placeholder"
       />
       <view v-if="serverWarn" class="warn-box">
         <text class="warn-text">真机请勿使用 127.0.0.1，请填 Mac 在 WiFi 下的 IP（端口 8010）</text>
       </view>
       <text class="hint">自动地址来自本地 uniapp/config/server.local.js（不入 Git）；换 WiFi 后请改此处并同步 backend/.env 的 PUBLIC_BASE_URL</text>
-      <text v-if="autoUrlHint" class="hint">当前自动地址：{{ autoUrlHint }}</text>
+      <text v-if="autoUrlHint" class="hint">编译默认地址（server.local.js）：{{ autoUrlHint }}</text>
+      <text v-if="activeRequestUrl" class="hint active-url">实际请求地址：{{ activeRequestUrl }}{{ serverManual ? '（已手动指定）' : '（自动）' }}</text>
       <button class="btn" size="mini" @click="resetAutoServer">恢复自动地址</button>
       <button class="btn" size="mini" @click="testConnection">测试连接</button>
       <text v-if="healthInfo" class="hint">{{ healthInfo }}</text>
@@ -73,7 +74,7 @@ import {
   normalizeBaseUrl,
   getBaseUrl
 } from '@/api/client.js'
-import { autoConfigureServer } from '@/utils/server-auto.js'
+import { autoConfigureServer, isServerManual } from '@/utils/server-auto.js'
 import { AUTO_SERVER_URL } from '@/config/server.js'
 import { clearMessages } from '@/utils/audio.js'
 
@@ -90,7 +91,9 @@ export default {
       speed: 1.0,
       healthInfo: '',
       serverWarn: false,
-      autoUrlHint: AUTO_SERVER_URL
+      autoUrlHint: AUTO_SERVER_URL,
+      activeRequestUrl: '',
+      serverManual: false
     }
   },
   computed: {
@@ -113,9 +116,10 @@ export default {
     }
   },
   onShow() {
-    autoConfigureServer(true)
     this.autoUrlHint = AUTO_SERVER_URL
-    const raw = getBaseUrl() || uni.getStorageSync('server_base') || ''
+    this.serverManual = isServerManual()
+    this.activeRequestUrl = getBaseUrl()
+    const raw = this.activeRequestUrl || ''
     if (raw && !(isNativeMobileApp() && isLocalhostUrl(raw))) {
       this.serverBase = normalizeBaseUrl(raw)
       this.serverWarn = false
@@ -136,11 +140,16 @@ export default {
         const idx = this.personas.findIndex((p) => p.id === this.personaId)
         this.personaIndex = idx >= 0 ? idx : 0
         this.syncModeIndex()
-      } catch {
+      } catch (e) {
         this.personas = [
           { id: 'skadi', name: '斯卡蒂', modes: ['cold', 'vulnerable'], mode_labels: { cold: '冷淡戒备', vulnerable: '脆弱真心' } },
           { id: 'skadi_corrupting', name: '浊心斯卡蒂', modes: ['gentle', 'plead'], mode_labels: { gentle: '温柔占有', plead: '清醒哀求' } }
         ]
+        uni.showToast({
+          title: `人物列表离线兜底（${getBaseUrl()}）`,
+          icon: 'none',
+          duration: 2800
+        })
         this.syncModeIndex()
       }
     },
@@ -163,6 +172,8 @@ export default {
     resetAutoServer() {
       autoConfigureServer(true)
       this.serverBase = getBaseUrl()
+      this.activeRequestUrl = this.serverBase
+      this.serverManual = false
       this.serverWarn = false
       uni.showToast({ title: '已恢复自动地址', icon: 'success' })
     },
@@ -174,6 +185,8 @@ export default {
       }
       try {
         this.serverBase = setBaseUrl(target)
+        this.activeRequestUrl = this.serverBase
+        this.serverManual = true
         this.serverWarn = false
       } catch (e) {
         this.healthInfo = e.message || ''
@@ -183,7 +196,9 @@ export default {
       uni.showLoading({ title: '测试中...' })
       try {
         const h = await healthCheck(true, true)
-        let line = `${this.serverBase} | 已连接`
+        const actual = getBaseUrl()
+        this.activeRequestUrl = actual
+        let line = `${actual} | 已连接`
         line += ` | LLM:${h.llm_configured ? '✓' : '✗'} TTS:${h.tts_configured ? '✓' : '✗'}`
         if (h.tts_configured) {
           line += ` 鉴权:${h.tts_auth_ok ? '✓' : '✗'}`
@@ -222,6 +237,8 @@ export default {
     saveSettings() {
       try {
         this.serverBase = setBaseUrl(this.serverBase)
+        this.activeRequestUrl = this.serverBase
+        this.serverManual = true
         this.serverWarn = false
       } catch (e) {
         uni.showModal({ title: '无法保存', content: e.message, showCancel: false })
@@ -320,6 +337,10 @@ export default {
   margin-top: 12rpx;
   font-size: 24rpx;
   color: #888;
+}
+.active-url {
+  color: #1a3a52;
+  font-weight: 500;
 }
 .actions {
   margin-top: 48rpx;

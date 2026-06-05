@@ -73,6 +73,119 @@
       ]
     }
   },
+  "contextual_gifts": {
+    "settings": {
+      "cooldown_sec": 2400,
+      "affection_min": 55,
+      "joy_min": 38
+    },
+    "scenarios": {
+      "hungry": {
+        "triggers": ["好饿", "很饿", "饿了", "肚子饿", "没吃饭", "没吃午饭", "没吃晚饭", "想吃东西", "饥一顿"],
+        "gifts": {
+          "skadi": {
+            "item_id": "skadi_warm_meal",
+            "title": "热汤与黑面包",
+            "desc": "斯卡蒂端来的汤还在冒气，她只说了一句「……吃完再说。」",
+            "icon": "🍲",
+            "reward_orundum": 40,
+            "narrative": "博士说饿了。斯卡蒂沉默片刻，转身去热了汤，重重搁在博士手边。",
+            "system_hint": "【关怀送礼·博士饿了】博士表示饥饿。你是主线斯卡蒂：外冷内热，会请博士吃饭或把食物推过去，嘴上简短嫌弃、行动很实在。1~2句≤60字，<cot>格式，末行[emotion:gentle]或[emotion:calm]，可加[mood_delta:+3]。"
+          },
+          "skadi_corrupting": {
+            "item_id": "corrupt_feeding_bowl",
+            "title": "温热的粥",
+            "desc": "浊心斯卡蒂舀起一勺吹凉，低声说「博士，张嘴。」",
+            "icon": "🥣",
+            "reward_orundum": 40,
+            "narrative": "博士说饿了。她接过碗，耐心吹凉每一勺，像怕烫到博士似的。",
+            "system_hint": "【关怀送礼·博士饿了】博士表示饥饿。你是浊心斯卡蒂：病态温柔，要亲自照顾博士进食，占有却克制。1~2句≤60字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+4]。"
+          }
+        }
+      },
+      "tired": {
+        "triggers": ["好累", "累了", "好困", "困了", "疲惫", "筋疲力尽", "想睡觉", "撑不住"],
+        "gifts": {
+          "skadi": {
+            "item_id": "skadi_rest_blanket",
+            "title": "厚毯与热水",
+            "desc": "斯卡蒂把毯子丢到博士肩上，「……睡一会儿。」",
+            "icon": "🛏️",
+            "reward_orundum": 35,
+            "narrative": "博士说累了。斯卡蒂没多话，只把毯子和热水放到触手可及的地方。",
+            "system_hint": "【关怀送礼·博士累了】博士疲惫想休息。你是主线斯卡蒂：让博士躺下休息，递毯或热水，语气硬、心意软。1~2句≤55字，<cot>格式，末行[emotion:gentle]或[emotion:calm]，可加[mood_delta:+3]。"
+          },
+          "skadi_corrupting": {
+            "item_id": "corrupt_tide_lullaby",
+            "title": "潮声枕边的安眠",
+            "desc": "她让博士靠着自己肩窝，潮声像摇篮曲一样低下去。",
+            "icon": "💤",
+            "reward_orundum": 35,
+            "narrative": "博士说累了。浊心斯卡蒂轻轻揽住博士，潮声把疲惫一点点按下去。",
+            "system_hint": "【关怀送礼·博士累了】博士疲惫。你是浊心斯卡蒂：让博士靠着你休息，温柔占有，像潮水托住。1~2句≤55字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+3]。"
+          }
+        }
+      },
+      "cold": {
+        "triggers": ["好冷", "很冷", "冷死了", "着凉", "冻", "寒气", "手好冰"],
+        "gifts": {
+          "skadi": {
+            "item_id": "skadi_warm_coat",
+            "title": "猎人大衣",
+            "desc": "斯卡蒂把自己的大衣披在博士肩上，别开脸。「……别感冒了。」",
+            "icon": "🧥",
+            "reward_orundum": 35,
+            "narrative": "博士说冷。斯卡蒂解下大衣披过去，装作只是顺手。",
+            "system_hint": "【关怀送礼·博士冷了】博士表示寒冷。你是主线斯卡蒂：把大衣或热水给博士，别扭关心。1~2句≤55字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+3]。"
+          },
+          "skadi_corrupting": {
+            "item_id": "corrupt_warm_embrace",
+            "title": "潮温的怀抱",
+            "desc": "她把博士圈进怀里，体温像缓慢涨潮一样暖过来。",
+            "icon": "🫂",
+            "reward_orundum": 35,
+            "narrative": "博士说冷。浊心斯卡蒂收紧手臂，用体温和潮声把寒意隔开。",
+            "system_hint": "【关怀送礼·博士冷了】博士表示寒冷。你是浊心斯卡蒂：用怀抱温暖博士，温柔偏执。1~2句≤55字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+3]。"
+          }
+        }
+      },
+      "unwell": {
+        "triggers": ["不舒服", "生病了", "头疼", "发烧", "难受", "身体不舒服", "感冒"],
+        "gifts": {
+          "skadi": {
+            "item_id": "skadi_medicine_tea",
+            "title": "草药茶与创可贴",
+            "desc": "斯卡蒂递来温热的药茶，「……按时喝。」",
+            "icon": "🍵",
+            "reward_orundum": 45,
+            "narrative": "博士说不舒服。斯卡蒂翻出常备的药茶，站在一旁直到博士接过。",
+            "system_hint": "【关怀送礼·博士不适】博士身体不舒服。你是主线斯卡蒂：照顾博士吃药喝茶，寡言但可靠。1~2句≤55字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+4]。"
+          },
+          "skadi_corrupting": {
+            "item_id": "corrupt_healing_tide",
+            "title": "潮声的抚慰",
+            "desc": "她贴着博士额头低语，潮声像细浪抚平不适。",
+            "icon": "💧",
+            "reward_orundum": 45,
+            "narrative": "博士说不舒服。浊心斯卡蒂守在床边，潮声一夜未停。",
+            "system_hint": "【关怀送礼·博士不适】博士身体不适。你是浊心斯卡蒂：温柔照料、守在博士身边。1~2句≤55字，<cot>格式，末行[emotion:gentle]，可加[mood_delta:+4]。"
+          }
+        }
+      }
+    }
+  },
+  "easter_eggs": {
+    "crazy_thursday": {
+      "persona_id": "skadi",
+      "item_id": "skadi_crazy_thursday",
+      "title": "疯狂星期四·V我50",
+      "desc": "斯卡蒂别过脸塞过来的五十，还附带一句「……拿去。」",
+      "icon": "🍗",
+      "reward_orundum": 50,
+      "cooldown_sec": 86400,
+      "narrative": "博士念叨着奇怪的广告词。斯卡蒂沉默了很久，还是从衣袋里摸出皱巴巴的纸币，推到博士手边。"
+    }
+  },
   "red_packets": {
     "skadi": {
       "item_id": "skadi_favorite_record",
@@ -159,6 +272,60 @@
       "desc": "潮声深处的安眠。",
       "icon": "💤",
       "source": "gift"
+    },
+    "skadi_crazy_thursday": {
+      "name": "疯狂星期四·V我50",
+      "desc": "蓝蒂别扭塞来的五十，据说能换炸鸡。",
+      "icon": "🍗",
+      "source": "easter_egg"
+    },
+    "skadi_warm_meal": {
+      "name": "热汤与黑面包",
+      "desc": "蓝蒂请博士吃饭的回礼。",
+      "icon": "🍲",
+      "source": "contextual_gift"
+    },
+    "skadi_rest_blanket": {
+      "name": "厚毯与热水",
+      "desc": "蓝蒂硬塞过来的休息用品。",
+      "icon": "🛏️",
+      "source": "contextual_gift"
+    },
+    "skadi_warm_coat": {
+      "name": "猎人大衣",
+      "desc": "蓝蒂披在博士肩上的大衣。",
+      "icon": "🧥",
+      "source": "contextual_gift"
+    },
+    "skadi_medicine_tea": {
+      "name": "草药茶与创可贴",
+      "desc": "蓝蒂常备的照顾。",
+      "icon": "🍵",
+      "source": "contextual_gift"
+    },
+    "corrupt_feeding_bowl": {
+      "name": "温热的粥",
+      "desc": "浊心亲手喂的一餐。",
+      "icon": "🥣",
+      "source": "contextual_gift"
+    },
+    "corrupt_tide_lullaby": {
+      "name": "潮声枕边的安眠",
+      "desc": "靠在她肩上睡去的片刻。",
+      "icon": "💤",
+      "source": "contextual_gift"
+    },
+    "corrupt_warm_embrace": {
+      "name": "潮温的怀抱",
+      "desc": "被她圈住的温度。",
+      "icon": "🫂",
+      "source": "contextual_gift"
+    },
+    "corrupt_healing_tide": {
+      "name": "潮声的抚慰",
+      "desc": "不适时被潮声抚平。",
+      "icon": "💧",
+      "source": "contextual_gift"
     }
   }
 }

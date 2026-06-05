@@ -57,7 +57,7 @@
               <text class="rp-icon">{{ msg.icon || '🧧' }}</text>
               <view class="rp-body">
                 <text class="rp-title">{{ msg.title || '特殊红包' }}</text>
-                <text class="rp-desc">{{ msg.claimed ? '已领取' : '点击领取 · +600 合成玉' }}</text>
+                <text class="rp-desc">{{ msg.claimed ? '已领取' : ('点击领取 · +' + (msg.rewardOrundum || claimRewardDefault) + ' 合成玉') }}</text>
               </view>
             </view>
           </view>
@@ -200,7 +200,7 @@ import {
   uploadVoiceChat,
   fetchPersonas,
   formatNetworkError,
-  getBaseUrl
+  resolveBackendUrl
 } from '@/api/client.js'
 import {
   getRecorder,
@@ -261,6 +261,9 @@ export default {
     /** 设置页手动填写的音色优先，否则用当前干员 default_voice */
     effectiveVoiceType() {
       return this.voiceType || this.personaDefaultVoice || ''
+    },
+    claimRewardDefault() {
+      return getClaimRewardOrundum()
     }
   },
   onLoad(options) {
@@ -310,6 +313,8 @@ export default {
         desc: m.desc || '',
         icon: m.icon || '',
         itemId: m.itemId || '',
+        rewardOrundum: m.rewardOrundum,
+        source: m.source || '',
         claimed: !!m.claimed,
         emoji: m.emoji || '',
         caption: m.caption || '',
@@ -318,11 +323,7 @@ export default {
       }))
     },
     resolveMediaUrl(url) {
-      if (!url) return ''
-      if (url.startsWith('http')) return url
-      if (url.startsWith('/static/')) return url
-      const base = getBaseUrl().replace(/\/$/, '')
-      return base + url
+      return resolveBackendUrl(url)
     },
     previewImage(url) {
       const u = this.resolveMediaUrl(url)
@@ -338,20 +339,32 @@ export default {
         joy: rel.joy,
         affection: rel.affection,
         lastRedPacketAt: rel.lastRedPacketAt || null,
-        lastStickerAt: rel.lastStickerAt || null
+        lastStickerAt: rel.lastStickerAt || null,
+        lastCrazyThursdayAt: rel.lastCrazyThursdayAt || null,
+        lastContextualGiftAt: rel.lastContextualGiftAt || null
       }
     },
     handleChatMeta(chatRes) {
-      const { relation, redPacket, sticker } = applyMoodFromChat(
+      const { relation, redPacket, sticker, narrative } = applyMoodFromChat(
         this.personaId,
         chatRes.mood_delta,
         chatRes.emotion,
         chatRes.red_packet_offer,
         chatRes.joy_after,
         chatRes.affection_after,
-        chatRes.sticker_offer
+        chatRes.sticker_offer,
+        chatRes.easter_egg_offer,
+        chatRes.contextual_gift_offer
       )
       this.relation = relation
+      if (narrative) {
+        this.appendMessage({
+          role: 'system',
+          type: 'gift_narrative',
+          content: narrative,
+          showText: true
+        })
+      }
       if (redPacket) {
         this.appendMessage({
           role: 'assistant',
@@ -360,6 +373,8 @@ export default {
           desc: redPacket.desc,
           icon: redPacket.icon,
           itemId: redPacket.itemId,
+          rewardOrundum: redPacket.rewardOrundum,
+          source: redPacket.source,
           claimed: false
         })
       }
@@ -384,11 +399,12 @@ export default {
     },
     claimRedPacket(msg) {
       if (msg.claimed) return
-      const res = claimRedPacketStore(msg, getClaimRewardOrundum())
+      const defaultReward = getClaimRewardOrundum()
+      const res = claimRedPacketStore(msg, defaultReward)
       if (res.ok) {
         msg.claimed = true
         saveMessages(this.personaId, this.messages)
-        uni.showToast({ title: `+${getClaimRewardOrundum()} 合成玉`, icon: 'success' })
+        uni.showToast({ title: `+${res.reward || defaultReward} 合成玉`, icon: 'success' })
       }
     },
     flushPendingGiftEvent() {
@@ -512,6 +528,8 @@ export default {
         desc: opts.desc || '',
         icon: opts.icon || '',
         itemId: opts.itemId || '',
+        rewardOrundum: opts.rewardOrundum,
+        source: opts.source || '',
         claimed: !!opts.claimed
       }
       this.messages.push(msg)
@@ -679,6 +697,8 @@ export default {
         form.affection = String(rel.affection)
         if (rel.lastRedPacketAt) form.last_red_packet_at = String(rel.lastRedPacketAt)
         if (rel.lastStickerAt) form.last_sticker_at = String(rel.lastStickerAt)
+        if (rel.lastCrazyThursdayAt) form.last_crazy_thursday_at = String(rel.lastCrazyThursdayAt)
+        if (rel.lastContextualGiftAt) form.last_contextual_gift_at = String(rel.lastContextualGiftAt)
         const res = await uploadVoiceChat(filePath, form)
         const pendingSticker = this.handleChatMeta(res)
         if (res.user_text) {

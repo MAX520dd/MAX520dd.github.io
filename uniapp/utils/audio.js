@@ -1,24 +1,12 @@
-import { getBaseUrl } from '@/api/client.js'
+import { getBaseUrl, resolveBackendUrl } from '@/api/client.js'
 
 let innerAudio = null
 let playingId = null
 let onPlayingChange = null
 
-/** 手机端把 127.0.0.1 换成设置页里的 Mac 局域网地址 */
+/** 统一用用户配置的后端地址解析 TTS/语音 URL */
 export function resolveAudioUrl(url) {
-  if (!url) return ''
-  const base = getBaseUrl().replace(/\/$/, '')
-  let u = String(url).trim()
-  if (u.startsWith('/')) {
-    return base + u
-  }
-  if (/^https?:\/\/127\.0\.0\.1/i.test(u)) {
-    return u.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/i, base)
-  }
-  if (/^https?:\/\/localhost/i.test(u)) {
-    return u.replace(/^https?:\/\/localhost(?::\d+)?/i, base)
-  }
-  return u
+  return resolveBackendUrl(url)
 }
 
 export function setPlayingCallback(cb) {
@@ -85,7 +73,8 @@ export function playUrl(url, msgId, onEnd, onError) {
   player.onError((e) => {
     playingId = null
     onPlayingChange && onPlayingChange(null)
-    onError && onError(new Error(e?.errMsg || '音频播放失败'))
+    const errMsg = e?.errMsg || '音频播放失败'
+    onError && onError(new Error(`${errMsg} (${src})`))
   })
   player.onCanplay(() => doPlay())
   player.src = src

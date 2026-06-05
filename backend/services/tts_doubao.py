@@ -462,7 +462,7 @@ async def synthesize_official_sing(
     filename = save_filename or f"sing-{reqid}.mp3"
     out_path: Path = settings.audio_dir / filename
     out_path.write_bytes(audio_bytes)
-    audio_url = f"{settings.public_base_url.rstrip('/')}/static/audio/{filename}"
+    audio_url = f"/static/audio/{filename}"
     plain = strip_display_markup(text)
     return {
         "audio_url": audio_url,
@@ -614,7 +614,7 @@ async def synthesize(
     out_path: Path = settings.audio_dir / filename
     out_path.write_bytes(audio_bytes)
 
-    audio_url = f"{settings.public_base_url.rstrip('/')}/static/audio/{filename}"
+    audio_url = f"/static/audio/{filename}"
 
     return {
         "audio_url": audio_url,

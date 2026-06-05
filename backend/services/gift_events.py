@@ -100,12 +100,15 @@ async def _synthesize_hum_with_retry(
 
 
 def _absolute_url(path: str) -> str:
+    """返回相对路径，由客户端按当前后端地址拼接。"""
     if not path:
         return ""
     if path.startswith("http"):
-        return path
-    base = (settings.public_base_url or "").rstrip("/")
-    return f"{base}{path}" if base else path
+        from urllib.parse import urlparse
+
+        parsed = urlparse(path)
+        return parsed.path or path
+    return path if path.startswith("/") else f"/{path}"
 
 
 async def trigger_gift_event(persona_id: str, item_id: str) -> dict[str, Any]:

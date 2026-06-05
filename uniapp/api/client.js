@@ -1,9 +1,12 @@
-import { autoConfigureServer } from '@/utils/server-auto.js'
+import { AUTO_SERVER_URL } from '@/config/server.js'
+import {
+  autoConfigureServer,
+  markServerManual,
+  readStoredServerUrl
+} from '@/utils/server-auto.js'
+import { clearCatalogCache } from '@/utils/game-store.js'
 
 const STORAGE_KEY = 'server_base'
-/** 模拟器 / HBuilder 浏览器调试；真机请在设置页填写 Mac 局域网地址 */
-/** 浏览器 / 模拟器调试默认后端（与 config/server.local.js 保持一致） */
-const DEFAULT_BASE_DEV = 'http://192.168.43.102:8010'
 const DEFAULT_PORT_HINT = '8010'
 
 /** 补全 http://，去掉误输入的前导 / */
@@ -43,18 +46,51 @@ export function getServerConfigHint() {
 }
 
 export function assertServerConfigured() {
-  const base = autoConfigureServer()
-  if (base) return base
-  if (isNativeMobileApp()) {
-    return autoConfigureServer(true)
-  }
-  return normalizeBaseUrl(DEFAULT_BASE_DEV)
+  const stored = readStoredServerUrl()
+  if (stored) return stored
+  const filled = autoConfigureServer(false)
+  if (filled) return filled
+  return normalizeBaseUrl(AUTO_SERVER_URL)
 }
 
 export function getBaseUrl() {
-  const base = autoConfigureServer()
-  if (base) return base
-  return isNativeMobileApp() ? autoConfigureServer(true) : normalizeBaseUrl(DEFAULT_BASE_DEV)
+  return assertServerConfigured()
+}
+
+/** App 包内资源，不走后端 */
+export function isAppBundledStatic(url) {
+  const u = String(url || '')
+  return u.includes('/static/biaoqingbao/')
+}
+
+/**
+ * 将后端返回的媒体地址统一为「当前用户配置的后端根地址 + 路径」。
+ * 避免 PUBLIC_BASE_URL 与 App 设置不一致导致语音/图片无法加载。
+ */
+export function resolveBackendUrl(url) {
+  if (!url) return ''
+  const u = String(url).trim()
+  if (isAppBundledStatic(u)) {
+    const pathMatch = u.match(/\/static\/biaoqingbao\/.*$/i)
+    return pathMatch ? pathMatch[0] : u
+  }
+  const base = getBaseUrl().replace(/\/$/, '')
+  const abs = u.match(/^https?:\/\/[^/]+(\/.*)$/i)
+  if (abs) {
+    const path = abs[1]
+    if (isAppBundledStatic(path)) return path
+    return base + path
+  }
+  if (u.startsWith('/')) {
+    return base + u
+  }
+  return `${base}/${u}`
+}
+
+export function buildApiUrl(path) {
+  const base = getBaseUrl().replace(/\/$/, '')
+  const p = path.startsWith('/') ? path : `/${path}`
+  return `${base}${p}`
 }
 
 export function setBaseUrl(url) {
@@ -65,7 +101,12 @@ export function setBaseUrl(url) {
   if (isNativeMobileApp() && isLocalhostUrl(normalized)) {
     throw new Error('真机请使用 Mac 局域网 IP，不要使用 127.0.0.1 或 localhost')
   }
+  const prev = readStoredServerUrl()
+  if (prev && prev !== normalized) {
+    clearCatalogCache()
+  }
   uni.setStorageSync(STORAGE_KEY, normalized)
+  markServerManual()
   return normalized
 }
 
@@ -92,10 +133,10 @@ function parseHealthBody(data) {
 }
 
 export function request(options) {
-  const base = assertServerConfigured()
+  const apiUrl = buildApiUrl(options.url || '/')
   return new Promise((resolve, reject) => {
     uni.request({
-      url: `${base}${options.url}`,
+      url: apiUrl,
       method: options.method || 'GET',
       data: options.data,
       header: {
@@ -131,7 +172,7 @@ export async function healthCheck(checkTts = false, forceTts = false) {
   const body = parseHealthBody(data)
   if (!body) {
     throw new Error(
-      `连上的不是本项目的语音后端（端口可能被 HBuilder 占用）。请用 ${DEFAULT_PORT_HINT} 启动后端，默认地址 ${DEFAULT_BASE_DEV}`
+      `连上的不是本项目的语音后端（端口可能被 HBuilder 占用）。请用 ${DEFAULT_PORT_HINT} 启动后端，当前请求 ${getBaseUrl()}`
     )
   }
   return body
@@ -180,6 +221,12 @@ export async function chatText(text, personaId, history, mode, doctorState, rela
     if (relationCtx.lastStickerAt) {
       data.last_sticker_at = relationCtx.lastStickerAt
     }
+    if (relationCtx.lastCrazyThursdayAt) {
+      data.last_crazy_thursday_at = relationCtx.lastCrazyThursdayAt
+    }
+    if (relationCtx.lastContextualGiftAt) {
+      data.last_contextual_gift_at = relationCtx.lastContextualGiftAt
+    }
   }
   return request({
     url: '/v1/chat',
@@ -204,10 +251,9 @@ export async function synthesizeTts(text, voiceType, speed, emotion, contextText
 }
 
 export function uploadVoiceChat(filePath, formData) {
-  const base = assertServerConfigured()
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: `${base}/v1/voice/chat`,
+      url: buildApiUrl('/v1/voice/chat'),
       filePath,
       name: 'file',
       formData: formData || {},

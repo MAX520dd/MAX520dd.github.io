@@ -9,6 +9,8 @@ const DEFAULT_RELATION = {
   affection: 100,
   joy: 50,
   lastRedPacketAt: 0,
+  lastCrazyThursdayAt: 0,
+  lastContextualGiftAt: 0,
   lastStickerAt: 0,
   lastMoodDelta: 0
 }
@@ -80,6 +82,19 @@ function saveRelation(personaId, rel) {
   writeGame(g)
 }
 
+function pickChatGiftOffer(easterEggOffer, contextualGiftOffer, redPacketOffer) {
+  if (easterEggOffer && easterEggOffer.item_id) {
+    return { offer: easterEggOffer, source: 'easter_egg' }
+  }
+  if (contextualGiftOffer && contextualGiftOffer.item_id) {
+    return { offer: contextualGiftOffer, source: 'contextual_gift' }
+  }
+  if (redPacketOffer && redPacketOffer.item_id) {
+    return { offer: redPacketOffer, source: 'red_packet' }
+  }
+  return null
+}
+
 export function applyMoodFromChat(
   personaId,
   moodDelta,
@@ -87,7 +102,9 @@ export function applyMoodFromChat(
   serverOffer,
   joyAfter,
   affectionAfter,
-  stickerOffer
+  stickerOffer,
+  easterEggOffer,
+  contextualGiftOffer
 ) {
   const rel = getRelation(personaId)
   const delta = Number(moodDelta) || 0
@@ -99,17 +116,35 @@ export function applyMoodFromChat(
   saveRelation(personaId, rel)
 
   let packet = null
-  if (serverOffer && serverOffer.item_id) {
+  let narrative = ''
+  const picked = pickChatGiftOffer(easterEggOffer, contextualGiftOffer, serverOffer)
+  if (picked) {
+    const { offer, source } = picked
+    const reward =
+      source === 'red_packet' ? undefined : Number(offer.reward_orundum) || (source === 'easter_egg' ? 50 : 35)
     packet = {
       id: Date.now() + Math.random(),
-      itemId: serverOffer.item_id,
-      title: serverOffer.title || '特殊红包',
-      desc: serverOffer.desc || '',
-      icon: serverOffer.icon || '🧧',
+      itemId: offer.item_id,
+      title:
+        offer.title ||
+        (source === 'easter_egg' ? '疯狂星期四·V我50' : source === 'contextual_gift' ? '关怀' : '特殊红包'),
+      desc: offer.desc || '',
+      icon: offer.icon || (source === 'easter_egg' ? '🍗' : source === 'contextual_gift' ? '🎁' : '🧧'),
+      rewardOrundum: reward,
+      source,
       personaId,
       claimed: false
     }
-    rel.lastRedPacketAt = Date.now() / 1000
+    if (source === 'easter_egg' || source === 'contextual_gift') {
+      narrative = offer.narrative || ''
+    }
+    if (source === 'easter_egg') {
+      rel.lastCrazyThursdayAt = Date.now() / 1000
+    } else if (source === 'contextual_gift') {
+      rel.lastContextualGiftAt = Date.now() / 1000
+    } else {
+      rel.lastRedPacketAt = Date.now() / 1000
+    }
     saveRelation(personaId, rel)
   }
 
@@ -120,7 +155,7 @@ export function applyMoodFromChat(
     saveRelation(personaId, rel)
   }
 
-  return { relation: rel, redPacket: packet, sticker }
+  return { relation: rel, redPacket: packet, sticker, narrative }
 }
 
 export function canOfferRedPacketLocally(personaId) {
@@ -138,16 +173,17 @@ export function claimRedPacket(packet, rewardOrundum = 600) {
   if (!packet || packet.claimed) {
     return { ok: false, message: '已领取' }
   }
-  const orundum = addOrundum(rewardOrundum)
+  const amount = packet.rewardOrundum ?? rewardOrundum
+  const orundum = addOrundum(amount)
   addSpecialItem({
     itemId: packet.itemId,
     title: packet.title,
     icon: packet.icon,
-    source: 'red_packet',
+    source: packet.source || 'red_packet',
     personaId: packet.personaId,
     claimedAt: Date.now()
   })
-  return { ok: true, orundum }
+  return { ok: true, orundum, reward: amount }
 }
 
 export function buyShopItem(item, catalog) {
@@ -200,6 +236,12 @@ export function cacheCatalog(catalog) {
 
 export function getCachedCatalog() {
   return readGame().catalogCache || null
+}
+
+export function clearCatalogCache() {
+  const g = readGame()
+  delete g.catalogCache
+  writeGame(g)
 }
 
 export function getClaimRewardOrundum() {

@@ -5,6 +5,10 @@
       <text class="banner-sub">合成玉 {{ wallet.orundum }} · 购买后从背包赠送干员</text>
     </view>
 
+    <view v-if="catalogOffline && goods.length" class="offline-banner">
+      <text>当前为离线/缓存商品，赠送需连上后端；改地址后请下拉刷新或点重试</text>
+    </view>
+
     <view v-if="loading" class="state-box">
       <text class="state-text">正在加载商品…</text>
     </view>
@@ -218,6 +222,16 @@ export default {
   margin-top: 8rpx;
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.75);
+}
+.offline-banner {
+  margin: 0 24rpx 16rpx;
+  padding: 16rpx 20rpx;
+  background: #fff8e1;
+  border-radius: 8rpx;
+  border: 1rpx solid #ffcc80;
+  font-size: 24rpx;
+  color: #e65100;
+  line-height: 1.5;
 }
 .state-box {
   margin: 24rpx;

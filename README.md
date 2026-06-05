@@ -451,6 +451,10 @@ ai-voice-chat/
 | [docs/dcloud-appid.md](docs/dcloud-appid.md) | DCloud AppID 申请 |
 | [docs/dcloud-android-appkey.md](docs/dcloud-android-appkey.md) | Android 离线 Key |
 | [docs/android-offline-custom-base.md](docs/android-offline-custom-base.md) | Android 离线自定义基座 |
+| [docs/arknights-world-setting.md](docs/arknights-world-setting.md) | 泰拉世界观校对参考（防 OOC；**不**注入每轮对话，参考 [维基百科](https://zh.wikipedia.org/wiki/明日方舟)） |
+| [docs/knowledge/skadi-bwiki.md](docs/knowledge/skadi-bwiki.md) | 斯卡蒂（主线）人员档案知识库（[B站 Wiki](https://wiki.biligame.com/arknights/%E6%96%AF%E5%8D%A1%E8%92%82) 摘录） |
+| [.cursor/skills/character-persona/wiki-extraction.md](.cursor/skills/character-persona/wiki-extraction.md) | 从官方 Wiki 抽取人设的规则（新建干员必读） |
+| [docs/knowledge/skadi-corrupting-bwiki.md](docs/knowledge/skadi-corrupting-bwiki.md) | 浊心斯卡蒂人员档案知识库（[B站 Wiki](https://wiki.biligame.com/arknights/%E6%B5%8A%E5%BF%83%E6%96%AF%E5%8D%A1%E8%92%82) 摘录） |
 
 ---
 

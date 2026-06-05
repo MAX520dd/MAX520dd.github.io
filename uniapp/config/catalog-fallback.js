@@ -34,5 +34,20 @@ export const CATALOG_FALLBACK = {
       event_type: 'drowsy_snore'
     }
   ],
-  special_item_meta: {}
+  special_item_meta: {
+    skadi_crazy_thursday: {
+      name: '疯狂星期四·V我50',
+      desc: '蓝蒂别扭塞来的五十，据说能换炸鸡。',
+      icon: '🍗',
+      source: 'easter_egg'
+    }
+  },
+  easter_eggs: {
+    crazy_thursday: {
+      persona_id: 'skadi',
+      item_id: 'skadi_crazy_thursday',
+      reward_orundum: 50,
+      cooldown_sec: 86400
+    }
+  }
 }

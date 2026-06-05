@@ -44,6 +44,8 @@ def public_catalog() -> dict[str, Any]:
         "red_packets": cfg.get("red_packets") or {},
         "shop_items": cfg.get("shop_items") or [],
         "special_item_meta": cfg.get("special_item_meta") or {},
+        "easter_eggs": cfg.get("easter_eggs") or {},
+        "contextual_gifts": cfg.get("contextual_gifts") or {},
         "sticker_settings": cfg.get("sticker_settings") or {},
         "sticker_packs": cfg.get("sticker_packs") or {},
     }

@@ -716,6 +716,7 @@ def build_messages(
     history: list[dict[str, str]] | None = None,
     mode: str = "",
     doctor_state: dict[str, Any] | None = None,
+    extra_system: str = "",
 ) -> list[dict[str, str]]:
     resolved_mode = mode or resolve_mode(persona, user_text, history, "auto")
     if is_sing_request(user_text) and persona.get("id") in ("skadi_corrupting", "skadi"):
@@ -723,6 +724,8 @@ def build_messages(
     system_content = build_system_prompt(persona, resolved_mode, doctor_state)
     if is_sing_request(user_text) and persona.get("id") in ("skadi_corrupting", "skadi"):
         system_content = f"{system_content}\n\n{SING_LYRICS_INSTRUCTION}"
+    if extra_system.strip():
+        system_content = f"{system_content}\n\n{extra_system.strip()}"
     messages: list[dict[str, str]] = [
         {
             "role": "system",

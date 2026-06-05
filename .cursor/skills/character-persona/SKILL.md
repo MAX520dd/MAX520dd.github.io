@@ -1,8 +1,9 @@
 ---
 name: character-persona
 description: >-
-  分析并撰写语音/对话角色的四要素人设（种族形态、个性、口吻、经历），输出 personas.json
-  与角色档案。在用户要求新建人物、优化人设、检查 OOC、扩展更多干员/角色 Skill 时使用。
+  分析并撰写语音/对话角色的四要素人设（种族形态、个性、口吻、经历）；须先从官方 B站 Wiki
+  #人员档案 抽取至 docs/knowledge/，再蒸馏 personas.json 与角色档案。新建人物、优化人设、
+  检查 OOC、扩展干员 Skill 时使用。
 ---
 
 # 人物性格 Skill（通用）
@@ -32,9 +33,14 @@ description: >-
 
 ### A. 分析新角色（产出档案）
 
+**必须先做 Wiki 抽取**：按 [wiki-extraction.md](wiki-extraction.md) 从 B站 Wiki `#人员档案` 录入 `docs/knowledge/<id>-bwiki.md`，再写四要素。世界观仅用 `docs/arknights-world-setting.md`，不替代干员页。
+
 1. **划定实例**：`id`（英文蛇形）、`name`、时间线/皮肤/if 线说明。
-2. **收集源设定**：官方档案、剧情、立绘、语音；列出事实与推断（推断须标注）。
-3. **填四要素表**：用 [template.md](template.md)；第 1 节必须含「形态禁止」。
+2. **官方 Wiki 抽取（P0）**：
+   - 抓取基础档案、客观履历、档案资料、语音记录；
+   - 写 `docs/knowledge/<id>-bwiki.md` + **证据表**（事实 / Wiki 区块 / 是否进 prompt）；
+   - 同页其他时间线内容标为「背景参考」，禁止混入本实例。
+3. **填四要素表**：用 [template.md](template.md)；第 1 节必须含「形态禁止」；顶部链回知识库。
 4. **派生对话结构**：
    - `emotions`：3~6 个可区分语气标签
    - `modes`：2~4 个**互斥主导情绪**场景（见 [reference.md](reference.md)）
@@ -42,10 +48,11 @@ description: >-
    - `few_shot` / `mode_few_shot`：每模式至少 2 组，覆盖称呼、句长、典型矛盾
 5. **写输出契约**：字数、`<cot>` 格式、`[emotion:]`；旁白**仅**全角括号（…），禁止「」、半角 `()`（与 `persona.py` 的 `normalize_roleplay_brackets` 一致）。
 6. **硬边界表**：与易混角色对比（同姓不同线、同世界观不同阵营）。
-7. **落盘**：
+7. **落盘**（三层）：
+   - 知识库 → `docs/knowledge/<id>-bwiki.md`
    - 角色档案 → `.cursor/skills/<pack>/characters/<id>.md`
-   - 数据真源 → `backend/data/personas.json`
-8. **自检**：用文末检查表。
+   - 运行时 → `backend/data/personas.json`（压缩，不贴 Wiki 全文）
+8. **自检**：用文末检查表 + [wiki-extraction.md](wiki-extraction.md) §5 证据表。
 
 ### B. 从分析到「更多人物 Skill」
 
@@ -115,6 +122,9 @@ description: >-
 ## 提交前自检
 
 ```
+- [ ] 已从 B站 Wiki #人员档案 抽取并写入 docs/knowledge/<id>-bwiki.md
+- [ ] 证据表已填；推断与官方原文已区分
+- [ ] 未把 Wiki 全文写入 system_prompt；意象可自然口语化
 - [ ] 四要素均已填写，且第 1 节含「形态禁止」
 - [ ] 口吻含「仅允许的称呼」与禁止称呼
 - [ ] 经历含「不会经历的事」
@@ -122,11 +132,14 @@ description: >-
 - [ ] few_shot 满足项目 cot / emotion 解析规则
 - [ ] 与易混角色硬边界表已写
 - [ ] personas.json 已同步
+- [ ] 实例包 SKILL.md 角色索引已链知识库
 ```
 
 ## 延伸阅读
 
+- **官方 Wiki 抽取规则**：[wiki-extraction.md](wiki-extraction.md)
 - 详细评分 rubric：[reference.md](reference.md)
 - 分析源材料步骤：[analysis-guide.md](analysis-guide.md)
 - 空白模板：[template.md](template.md)
+- 泰拉世界观（非干员档案）：[docs/arknights-world-setting.md](../../../docs/arknights-world-setting.md)
 - 斯卡蒂实例：[../arknights-skadi-persona/SKILL.md](../arknights-skadi-persona/SKILL.md)

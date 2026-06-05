@@ -5,6 +5,12 @@ from typing import Any
 from openai import OpenAI
 
 from config import settings
+from services.contextual_gifts import (
+    detect_scenario,
+    finalize_contextual_gift,
+    precheck_contextual_gift,
+)
+from services.easter_eggs import CRAZY_THURSDAY_SYSTEM, evaluate_crazy_thursday_offer
 from services.mood import adjust_mood_delta, clamp, evaluate_red_packet_offer
 from services.sticker import evaluate_sticker_offer
 from services.persona import (
@@ -41,6 +47,8 @@ def _chat_sync(
     affection: int | None = None,
     last_red_packet_at: float | None = None,
     last_sticker_at: float | None = None,
+    last_crazy_thursday_at: float | None = None,
+    last_contextual_gift_at: float | None = None,
 ) -> dict[str, Any]:
     if not settings.llm_api_key:
         raise ValueError("LLM_API_KEY 未配置，请在 backend/.env 中填写")
@@ -49,10 +57,42 @@ def _chat_sync(
     if not persona:
         raise ValueError(f"未找到人物配置: {persona_id}")
 
+    joy_before = clamp(int(joy if joy is not None else 50))
+    affection_before = clamp(int(affection if affection is not None else 100))
+
     resolved_mode = resolve_mode(persona, text, history, mode or "auto")
     if is_sing_request(text) and persona.get("id") in ("skadi", "skadi_corrupting"):
         resolved_mode = sing_friendly_mode(persona)
-    messages = build_messages(persona, text, history, resolved_mode, doctor_state)
+
+    now_ts = time.time()
+    easter_egg_offer = evaluate_crazy_thursday_offer(
+        persona["id"],
+        text,
+        last_crazy_thursday_at,
+        now_ts,
+    )
+    contextual_pre = None
+    if not easter_egg_offer:
+        scenario_id = detect_scenario(text)
+        if scenario_id:
+            contextual_pre = precheck_contextual_gift(
+                persona["id"],
+                scenario_id,
+                affection_before,
+                joy_before,
+                last_contextual_gift_at,
+                now_ts,
+            )
+
+    extra_parts: list[str] = []
+    if easter_egg_offer:
+        extra_parts.append(CRAZY_THURSDAY_SYSTEM)
+    elif contextual_pre:
+        extra_parts.append(contextual_pre["system_hint"])
+    extra_system = "\n\n".join(extra_parts)
+    messages = build_messages(
+        persona, text, history, resolved_mode, doctor_state, extra_system=extra_system
+    )
     client = _client()
 
     extra_body: dict[str, Any] = {"think": False}
@@ -106,19 +146,27 @@ def _chat_sync(
         stage_direction = extract_stage_directions(raw, emotion)
         tts_context = emotion_context_for_tts(emotion, cot_hint, raw)
 
-    joy_before = clamp(int(joy if joy is not None else 50))
     joy_after = clamp(joy_before + mood_delta)
-    affection_before = clamp(int(affection if affection is not None else 100))
     affection_after = clamp(affection_before + round(mood_delta * 0.6))
 
-    now_ts = time.time()
-    red_packet_offer = evaluate_red_packet_offer(
-        persona["id"],
-        emotion,
-        joy_before,
-        mood_delta,
-        last_red_packet_at,
-        now_ts,
+    contextual_gift_offer = None
+    if contextual_pre:
+        contextual_gift_offer = finalize_contextual_gift(
+            contextual_pre, emotion, mood_delta
+        )
+
+    red_packet_offer = None
+    if not easter_egg_offer and not contextual_gift_offer:
+        red_packet_offer = evaluate_red_packet_offer(
+            persona["id"],
+            emotion,
+            joy_before,
+            mood_delta,
+            last_red_packet_at,
+            now_ts,
+        )
+    gift_this_turn = bool(
+        easter_egg_offer or contextual_gift_offer or red_packet_offer
     )
     sticker_offer = evaluate_sticker_offer(
         persona["id"],
@@ -127,9 +175,15 @@ def _chat_sync(
         joy_before,
         last_sticker_at,
         now_ts,
-        red_packet_this_turn=bool(red_packet_offer),
+        red_packet_this_turn=gift_this_turn,
         history=history,
     )
+    if easter_egg_offer and mood_delta < 3:
+        mood_delta = max(mood_delta, 5)
+        joy_after = clamp(joy_before + mood_delta)
+    if contextual_gift_offer and mood_delta < 2:
+        mood_delta = max(mood_delta, 3)
+        joy_after = clamp(joy_before + mood_delta)
 
     return {
         "reply_text": reply_text,
@@ -146,6 +200,8 @@ def _chat_sync(
         "joy_after": joy_after,
         "affection_after": affection_after,
         "red_packet_offer": red_packet_offer,
+        "easter_egg_offer": easter_egg_offer,
+        "contextual_gift_offer": contextual_gift_offer,
         "sticker_offer": sticker_offer,
         "persona_id": persona["id"],
         "persona_name": persona["name"],
@@ -164,6 +220,8 @@ async def chat(
     affection: int | None = None,
     last_red_packet_at: float | None = None,
     last_sticker_at: float | None = None,
+    last_crazy_thursday_at: float | None = None,
+    last_contextual_gift_at: float | None = None,
 ) -> dict[str, Any]:
     return await asyncio.to_thread(
         _chat_sync,
@@ -176,4 +234,6 @@ async def chat(
         affection,
         last_red_packet_at,
         last_sticker_at,
+        last_crazy_thursday_at,
+        last_contextual_gift_at,
     )

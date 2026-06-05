@@ -65,6 +65,8 @@ class ChatRequest(BaseModel):
     affection: int | None = None
     last_red_packet_at: float | None = None
     last_sticker_at: float | None = None
+    last_crazy_thursday_at: float | None = None
+    last_contextual_gift_at: float | None = None
 
 
 class GiftTriggerRequest(BaseModel):
@@ -157,6 +159,8 @@ async def chat(req: ChatRequest):
             affection=req.affection,
             last_red_packet_at=req.last_red_packet_at,
             last_sticker_at=req.last_sticker_at,
+            last_crazy_thursday_at=req.last_crazy_thursday_at,
+            last_contextual_gift_at=req.last_contextual_gift_at,
         )
         return result
     except Exception as e:
@@ -219,6 +223,8 @@ async def voice_chat(
     affection: int | None = Form(None),
     last_red_packet_at: float | None = Form(None),
     last_sticker_at: float | None = Form(None),
+    last_crazy_thursday_at: float | None = Form(None),
+    last_contextual_gift_at: float | None = Form(None),
 ):
     """
     一键链路：音频 → ASR → LLM → TTS
@@ -256,6 +262,8 @@ async def voice_chat(
             affection=affection,
             last_red_packet_at=last_red_packet_at,
             last_sticker_at=last_sticker_at,
+            last_crazy_thursday_at=last_crazy_thursday_at,
+            last_contextual_gift_at=last_contextual_gift_at,
         )
 
         persona = get_persona(persona_id) or {}
@@ -298,6 +306,8 @@ async def voice_chat(
             "joy_after": chat_result.get("joy_after"),
             "affection_after": chat_result.get("affection_after"),
             "red_packet_offer": chat_result.get("red_packet_offer"),
+            "easter_egg_offer": chat_result.get("easter_egg_offer"),
+            "contextual_gift_offer": chat_result.get("contextual_gift_offer"),
             "sticker_offer": chat_result.get("sticker_offer"),
             "persona_id": chat_result.get("persona_id"),
             "persona_name": chat_result.get("persona_name"),

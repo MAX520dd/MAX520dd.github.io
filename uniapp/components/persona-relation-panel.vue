@@ -19,7 +19,7 @@
       <text v-if="relation.lastMoodDelta" class="hint">
         上轮氛围 {{ relation.lastMoodDelta > 0 ? '+' : '' }}{{ relation.lastMoodDelta }}
       </text>
-      <text class="sub">开心度达标且氛围回暖时，可能收到特殊红包；表情包间隔数分钟，不宜过频</text>
+      <text class="sub">博士诉说饿/累/冷/不适且好感≥55、开心≥38时，角色可能按性格主动关怀赠礼。开心度≥72且氛围回暖时还可能收到特殊红包。主线斯卡蒂玩「疯狂星期四」梗可触发彩蛋。</text>
       <button class="btn" size="mini" @click="close">关闭</button>
     </view>
   </view>

@@ -1,6 +1,10 @@
 # <角色名>（<时间线说明>）`<id>`
 
-> 复制本模板新建角色。完成后放入 `.cursor/skills/<pack>/characters/<id>.md` 并同步 `backend/data/personas.json`。
+> 复制本模板新建角色。  
+> **须先**按 [wiki-extraction.md](../wiki-extraction.md) 从 B站 Wiki `#人员档案` 写 `docs/knowledge/<id>-bwiki.md`，再填本档案并同步 `backend/data/personas.json`。
+
+**官方档案**：[B站 Wiki 人员档案](<Wiki URL>)  
+**知识库摘录**：`docs/knowledge/<id>-bwiki.md`
 
 ## 1. 种族与形态特征
 
@@ -77,8 +81,16 @@
 |------|--------------|
 | | |
 
-## 8. 写作自检（本角色专用）
+## 8. Wiki 证据表（抽取时填写）
 
+| 事实 | Wiki 区块 | 用于四要素 | 进 system_prompt |
+|------|-----------|------------|------------------|
+| | | | |
+
+## 9. 写作自检（本角色专用）
+
+- [ ] `docs/knowledge/<id>-bwiki.md` 已从官方 Wiki 录入
+- [ ] 未把 Wiki 长文写入 system_prompt
 - [ ] 未触雷形态禁止项
 - [ ] 仅允许称呼
 - [ ] 句长与语气词符合 §3

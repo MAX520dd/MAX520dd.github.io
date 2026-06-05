@@ -75,8 +75,19 @@
 ## 与代码一致性
 
 - 解析逻辑：`backend/services/persona.py`（`<cot>`、`[emotion:]`、括号旁白）
-- 真源数据：`backend/data/personas.json`
+- 运行时真源：`backend/data/personas.json`（蒸馏层，非 Wiki 全文）
+- 证据层：`docs/knowledge/<id>-bwiki.md`（见 [wiki-extraction.md](wiki-extraction.md)）
 - 改档案后必须改 JSON，并抽检 1~2 轮对话
+
+## Wiki 抽取质量（合格标准）
+
+| 等级 | 标准 |
+|------|------|
+| 必需 | 存在 `docs/knowledge/<id>-bwiki.md`，来源链到 B站 Wiki `#人员档案` |
+| 必需 | 证据表区分「进 prompt」与「仅知识库」 |
+| 必需 | 语音记录已做主题索引，非逐句粘贴 |
+| 推荐 | mode 与官方语音锚点一一对应 |
+| 禁止 | system_prompt 含大段档案原文或医学数据科普 |
 
 ## 扩展新 IP 的检查
 
